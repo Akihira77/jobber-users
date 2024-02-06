@@ -21,7 +21,7 @@
   "dependencies": {
     "@Akihira77/jobber-shared": "^0.0.8",
     "@elastic/elasticsearch": "^8.11.0",
-    "@faker-js/faker": "^8.3.1",
+    "@faker-js/faker": "^8.4.0",
     "amqplib": "^0.10.3",
     "bcryptjs": "^2.4.3",
     "compression": "^1.7.4",
@@ -39,6 +39,7 @@
     "pino-pretty": "^10.3.1",
     "typescript": "^5.3.3",
     "typescript-transform-paths": "^3.4.6",
+    "uuid": "^9.0.1",
     "winston": "^3.11.0"
   },
   "devDependencies": {

@@ -24,6 +24,14 @@ import helmet from "helmet";
 import cors from "cors";
 import { checkConnection } from "@users/elasticsearch";
 import { appRoutes } from "@users/routes";
+import { createConnection } from "@users/queues/connection";
+import {
+    consumeBuyerDirectMessages,
+    consumeReviewFanoutMessages,
+    consumeSeedGigDirectMessages,
+    consumeSellerDirectMessages
+} from "@users/queues/users.consumer";
+import { Channel } from "amqplib";
 
 const PORT = 4003;
 
@@ -77,7 +85,13 @@ function routesMiddleware(app: Application): void {
     appRoutes(app);
 }
 
-async function startQueues(): Promise<void> {}
+async function startQueues(): Promise<void> {
+    const channel = (await createConnection()) as Channel;
+    await consumeBuyerDirectMessages(channel);
+    await consumeSellerDirectMessages(channel);
+    await consumeReviewFanoutMessages(channel);
+    await consumeSeedGigDirectMessages(channel);
+}
 
 function startElasticSearch(): void {
     checkConnection();

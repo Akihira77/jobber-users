@@ -43,5 +43,30 @@ export const buyerServiceExchangeNamesAndRoutingKeys = {
     buyer: {
         exchangeName: "jobber-buyer-update",
         routingKey: "user-buyer"
+    },
+    seller: {
+        exchangeName: "jobber-seller-update",
+        routingKey: "user-seller"
+    }
+};
+
+export const reviewServiceExchangeNamesAndRoutingKeys = {
+    review: {
+        exchangeName: "jobber-review"
+    }
+};
+
+export const gigServiceExchangeNamesAndRoutingKeys = {
+    updateGig: {
+        exchangeName: "jobber-update-gig",
+        routingKey: "update-gig"
+    },
+    getSellers: {
+        exchangeName: "jobber-gig",
+        routingKey: "get-sellers"
+    },
+    seed: {
+        exchangeName: "jobber-seed-gig",
+        routingKey: "receive-sellers"
     }
 };

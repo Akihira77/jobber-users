@@ -121,7 +121,7 @@ export async function updateTotalGigCount(
     ).exec();
 }
 
-export async function updateSellerOngoindJobsProp(
+export async function updateSellerOngoingJobsProp(
     sellerId: string,
     ongoingJobs: number
 ): Promise<void> {
@@ -135,7 +135,23 @@ export async function updateSellerOngoindJobsProp(
     ).exec();
 }
 
-export async function updateCompletedJobs(data: IOrderMessage): Promise<void> {
+export async function updateSellerCancelJobsProp(
+    sellerId: string
+): Promise<void> {
+    await SellerModel.updateOne(
+        { _id: sellerId },
+        {
+            $inc: {
+                ongoingJobs: -1,
+                cancelledJobs: 1
+            }
+        }
+    ).exec();
+}
+
+export async function updateSellerCompletedJobs(
+    data: IOrderMessage
+): Promise<void> {
     const {
         sellerId,
         ongoingJobs,
@@ -159,7 +175,9 @@ export async function updateCompletedJobs(data: IOrderMessage): Promise<void> {
     ).exec();
 }
 
-export async function sellerReview(data: IReviewMessageDetails): Promise<void> {
+export async function updateSellerReview(
+    data: IReviewMessageDetails
+): Promise<void> {
     const ratingTypes: IRatingTypes = {
         "1": "one",
         "2": "two",

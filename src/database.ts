@@ -11,7 +11,7 @@ const log: Logger = winstonLogger(
 
 export const databaseConnection = async (): Promise<void> => {
     try {
-        console.log(DATABASE_URL);
+        // console.log(DATABASE_URL);
         await mongoose.connect(`${DATABASE_URL}`);
         log.info("Users service successfully connected to database.");
     } catch (error) {
