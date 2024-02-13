@@ -13,7 +13,9 @@ export async function getSellerById(
 ): Promise<ISellerDocument | null> {
     const result = await SellerModel.findOne({
         _id: new mongoose.Types.ObjectId(id)
-    }).exec();
+    })
+        .lean()
+        .exec();
 
     return result;
 }
@@ -23,7 +25,9 @@ export async function getSellerByUsername(
 ): Promise<ISellerDocument | null> {
     const result = await SellerModel.findOne({
         username
-    }).exec();
+    })
+        .lean()
+        .exec();
 
     return result;
 }
@@ -33,7 +37,9 @@ export async function getSellerByEmail(
 ): Promise<ISellerDocument | null> {
     const result = await SellerModel.findOne({
         email
-    }).exec();
+    })
+        .lean()
+        .exec();
 
     return result;
 }

@@ -4,7 +4,7 @@ import { BuyerModel } from "@users/models/buyer.model";
 export async function getBuyerByEmail(
     email: string
 ): Promise<IBuyerDocument | null> {
-    const result = await BuyerModel.findOne({ email }).exec();
+    const result = await BuyerModel.findOne({ email }).lean().exec();
 
     return result;
 }
@@ -12,7 +12,7 @@ export async function getBuyerByEmail(
 export async function getBuyerByUsername(
     username: string
 ): Promise<IBuyerDocument | null> {
-    const result = await BuyerModel.findOne({ username }).exec();
+    const result = await BuyerModel.findOne({ username }).lean().exec();
 
     return result;
 }
