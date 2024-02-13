@@ -18,8 +18,7 @@ export const {
     JWT_TOKEN,
     NODE_ENV,
     RABBITMQ_ENDPOINT,
-    DATABASE_URL,
-    REDIS_HOST
+    DATABASE_URL
 } = process.env;
 
 export const cloudinaryConfig = () =>
