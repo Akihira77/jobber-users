@@ -5,15 +5,16 @@ import {
     ISellerDocument
 } from "@Akihira77/jobber-shared";
 import { SellerModel } from "@users/models/seller.model";
-import mongoose from "mongoose";
+// import mongoose from "mongoose";
 import { updateBuyerIsSellerProp } from "@users/services/buyer.service";
 
 export async function getSellerById(
     id: string
 ): Promise<ISellerDocument | null> {
-    const result = await SellerModel.findOne({
-        _id: new mongoose.Types.ObjectId(id)
-    })
+    const result = await SellerModel.findById(
+        // _id: new mongoose.Types.ObjectId(id)
+        id
+    )
         .lean()
         .exec();
 

@@ -80,7 +80,7 @@ const sellerSchema: Schema = new Schema(
             type: Number,
             default: 0
         },
-        resentDelivery: {
+        recentDelivery: {
             type: Date,
             default: ""
         },
