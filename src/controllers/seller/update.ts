@@ -1,11 +1,19 @@
 import { BadRequestError, ISellerDocument } from "@Akihira77/jobber-shared";
 import { sellerSchema } from "@users/schemas/seller.schema";
-import { updateSeller } from "@users/services/seller.service";
+import { getSellerById, updateSeller } from "@users/services/seller.service";
 import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 
 export async function seller(req: Request, res: Response): Promise<void> {
-    const { error } = await Promise.resolve(sellerSchema.validate(req.body));
+    const existedSeller = await getSellerById(req.params.sellerId);
+    if (!existedSeller) {
+        throw new BadRequestError(
+            "Seller is not found",
+            "Update seller() method"
+        );
+    }
+
+    const { error } = sellerSchema.validate(req.body);
 
     if (error?.details) {
         throw new BadRequestError(
@@ -29,6 +37,7 @@ export async function seller(req: Request, res: Response): Promise<void> {
         socialLinks: req.body.socialLinks,
         certificates: req.body.certificates
     };
+
     const updatedSeller = await updateSeller(req.params.sellerId, sellerData);
 
     res.status(StatusCodes.OK).json({

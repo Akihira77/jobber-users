@@ -90,10 +90,10 @@ function routesMiddleware(app: Application): void {
 
 async function startQueues(): Promise<void> {
     const channel = (await createConnection()) as Channel;
-    await consumeBuyerDirectMessages(channel);
-    await consumeSellerDirectMessages(channel);
-    await consumeReviewFanoutMessages(channel);
-    await consumeSeedGigDirectMessages(channel);
+    consumeBuyerDirectMessages(channel);
+    consumeSellerDirectMessages(channel);
+    consumeReviewFanoutMessages(channel);
+    consumeSeedGigDirectMessages(channel);
 }
 
 function startElasticSearch(): void {

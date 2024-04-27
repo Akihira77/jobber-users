@@ -1,11 +1,15 @@
 import { BadRequestError, ISellerDocument } from "@Akihira77/jobber-shared";
 import { sellerSchema } from "@users/schemas/seller.schema";
-import { createSeller, getSellerByEmail } from "@users/services/seller.service";
+import {
+    createSeller,
+    getSellerByEmail,
+    getSellerByUsername
+} from "@users/services/seller.service";
 import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 
 export async function seller(req: Request, res: Response): Promise<void> {
-    const { error } = await Promise.resolve(sellerSchema.validate(req.body));
+    const { error } = sellerSchema.validate(req.body);
 
     if (error?.details) {
         throw new BadRequestError(
@@ -14,11 +18,13 @@ export async function seller(req: Request, res: Response): Promise<void> {
         );
     }
 
-    const existedSeller = await getSellerByEmail(req.body.email);
+    const existedSeller =
+        (await getSellerByEmail(req.body.email ?? "")) ??
+        (await getSellerByUsername(req.body.username ?? ""));
 
     if (existedSeller) {
         throw new BadRequestError(
-            "Seller already exist. Go to your account apge to update",
+            "Seller already exist. Go to your account page to update",
             "Create seller() method error"
         );
     }
