@@ -73,7 +73,7 @@ export async function consumeBuyerDirectMessages(
                     };
 
                     await createBuyer(buyerData);
-                } else {
+                } else if (["cancel-order", "purchased-gigs"].includes(type)) {
                     const { buyerId, purchasedGigs } = JSON.parse(
                         message!.content.toString()
                     );
@@ -187,21 +187,23 @@ export async function consumeReviewFanoutMessages(
             async (message: ConsumeMessage | null) => {
                 const { type } = JSON.parse(message!.content.toString());
 
-                if (type === "buyer-review") {
+                if (type === "addReview") {
                     const gig = gigServiceExchangeNamesAndRoutingKeys.updateGig;
                     const parsedData = JSON.parse(message!.content.toString());
 
-                    await updateSellerReview(parsedData);
-                    await publishDirectMessage(
-                        channel,
-                        gig.exchangeName,
-                        gig.routingKey,
-                        JSON.stringify({
-                            type: "updateGig",
-                            gigReview: message!.content.toString()
-                        }),
-                        "Message sent to gig service."
-                    );
+                    if (parsedData.type === "buyer-review") {
+                        await updateSellerReview(parsedData);
+                        await publishDirectMessage(
+                            channel,
+                            gig.exchangeName,
+                            gig.routingKey,
+                            JSON.stringify({
+                                type: "updateGigReview",
+                                gigReview: parsedData
+                            }),
+                            "Message sent to gig service."
+                        );
+                    }
                 }
 
                 channel.ack(message!);
