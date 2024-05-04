@@ -225,7 +225,7 @@ export async function updateSeller(
             { _id: sellerId },
             sellerData,
             { new: true }
-        ).exec();
+        ).lean().exec();
     } catch (error) {
         logger.error("UsersService updateSeller() method error", error);
         throw new Error("Unexpected error occured. Please try again.");

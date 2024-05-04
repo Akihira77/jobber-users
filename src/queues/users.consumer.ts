@@ -2,6 +2,7 @@ import { IBuyerDocument, winstonLogger } from "@Akihira77/jobber-shared";
 import {
     ELASTIC_SEARCH_URL,
     buyerServiceExchangeNamesAndRoutingKeys,
+    chatServiceExchangeNamesAndRoutingKeys,
     gigServiceExchangeNamesAndRoutingKeys,
     reviewServiceExchangeNamesAndRoutingKeys
 } from "@users/config";
@@ -10,6 +11,7 @@ import { Logger } from "winston";
 import { createConnection } from "@users/queues/connection";
 import {
     createBuyer,
+    getBuyerByUsername,
     updateBuyerPurchasedGigsProp
 } from "@users/services/buyer.service";
 import {
@@ -270,5 +272,49 @@ export async function consumeSeedGigDirectMessages(
             "UsersService QueueConsumer consumeBuyerDirectMessages() method error:",
             error
         );
+    }
+}
+
+export async function consumeChatDirectMessages(channel: Channel) {
+    try {
+        if (!channel) {
+            channel = (await createConnection()) as Channel;
+        }
+
+        const { checkExistingUserForConversation, responseExistingUsersForConversation } =
+            chatServiceExchangeNamesAndRoutingKeys;
+        const queueName = "user-chat-queue";
+
+        await channel.assertExchange(checkExistingUserForConversation.exchangeName, "direct");
+
+        // if queue not exist it will create new
+        const jobberQueue = await channel.assertQueue(queueName, {
+            durable: true,
+            autoDelete: false
+        });
+
+        // create path between exchange and queue using routingKey
+        await channel.bindQueue(jobberQueue.queue, checkExistingUserForConversation.exchangeName, checkExistingUserForConversation.routingKey);
+        channel.consume(jobberQueue.queue, async (message: ConsumeMessage | null) => {
+            const { type } = JSON.parse(message!.content.toString())
+            if (type === "validate-users-conversation") {
+                const { senderUsername, receiverUsername } = JSON.parse(message!.content.toString())
+                const [sender, receiver] = await Promise.all([getBuyerByUsername(senderUsername), getBuyerByUsername(receiverUsername)]);
+
+                let result = false;
+                if (sender && receiver) {
+                    result = true;
+                }
+
+                await publishDirectMessage(channel, responseExistingUsersForConversation.exchangeName, responseExistingUsersForConversation.routingKey, JSON.stringify({
+                    type: "response-users-conversation",
+                    result
+                }), "Message sent to chat service");
+            }
+
+            channel.ack(message!)
+        })
+    } catch (error) {
+
     }
 }

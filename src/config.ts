@@ -87,3 +87,14 @@ export const gigServiceExchangeNamesAndRoutingKeys = {
         routingKey: "receive-sellers"
     }
 };
+
+export const chatServiceExchangeNamesAndRoutingKeys = {
+    checkExistingUserForConversation: {
+        exchangeName: "jobber-check-existing-user",
+        routingKey: "check-user-for-conversation"
+    },
+    responseExistingUsersForConversation: {
+        exchangeName: "jobber-response-existing-user",
+        routingKey: "response-user-for-conversation"
+    }
+}
