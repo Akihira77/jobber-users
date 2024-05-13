@@ -23,6 +23,7 @@ import {
     updateTotalGigCount
 } from "@users/services/seller.service";
 import { publishDirectMessage } from "./users.producer";
+import { authBuyerSchema } from "@users/schemas/consumeBuyer.schema";
 
 const log: Logger = winstonLogger(
     `${ELASTIC_SEARCH_URL}`,
@@ -35,7 +36,7 @@ export async function consumeBuyerDirectMessages(
 ): Promise<void> {
     try {
         if (!channel) {
-            channel = (await createConnection()) as Channel;
+            channel = await createConnection();
         }
 
         const { exchangeName, routingKey } =
@@ -54,40 +55,63 @@ export async function consumeBuyerDirectMessages(
         await channel.bindQueue(jobberQueue.queue, exchangeName, routingKey);
         channel.consume(
             jobberQueue.queue,
-            async (message: ConsumeMessage | null) => {
-                const { type } = JSON.parse(message!.content.toString());
+            async (msg: ConsumeMessage | null) => {
+                try {
+                    const { type } = JSON.parse(msg!.content.toString());
 
-                if (type === "auth") {
-                    const {
-                        username,
-                        email,
-                        profilePicture,
-                        country,
-                        createdAt
-                    } = JSON.parse(message!.content.toString());
-                    const buyerData: IBuyerDocument = {
-                        username,
-                        email,
-                        profilePicture,
-                        country,
-                        purchasedGigs: [],
-                        createdAt
-                    };
+                    if (type === "auth") {
+                        const {
+                            username,
+                            email,
+                            profilePicture,
+                            country,
+                            createdAt
+                        } = JSON.parse(msg!.content.toString());
 
-                    await createBuyer(buyerData);
-                } else if (["cancel-order", "purchased-gigs"].includes(type)) {
-                    const { buyerId, purchasedGigs } = JSON.parse(
-                        message!.content.toString()
-                    );
+                        const validationError = authBuyerSchema.validate(msg?.content).error
+                        if (validationError) {
+                            throw new Error(validationError.details[0].message);
+                        }
 
-                    await updateBuyerPurchasedGigsProp(
-                        buyerId,
-                        purchasedGigs,
-                        type
+                        const buyerData: IBuyerDocument = {
+                            username,
+                            email,
+                            profilePicture,
+                            country,
+                            purchasedGigs: [],
+                            createdAt
+                        };
+
+                        await createBuyer(buyerData);
+                        channel.ack(msg!);
+                        return;
+                    } else if (["cancel-order", "purchased-gigs"].includes(type)) {
+                        const { buyerId, purchasedGigs } = JSON.parse(
+                            msg!.content.toString()
+                        );
+
+                        if (!(buyerId || purchasedGigs)) {
+                            throw new Error("required field is null")
+                        }
+
+                        await updateBuyerPurchasedGigsProp(
+                            buyerId,
+                            purchasedGigs,
+                            type
+                        );
+                        channel.ack(msg!);
+                        return;
+                    }
+
+                    channel.reject(msg!, false);
+                } catch (error) {
+                    channel.reject(msg!, false);
+
+                    log.error(
+                        "consuming message got errors. consumeBuyerDirectMessages() error",
+                        error
                     );
                 }
-
-                channel.ack(message!);
             }
         );
     } catch (error) {
@@ -103,7 +127,7 @@ export async function consumeSellerDirectMessages(
 ): Promise<void> {
     try {
         if (!channel) {
-            channel = (await createConnection()) as Channel;
+            channel = await createConnection();
         }
 
         const { exchangeName, routingKey } =
@@ -122,35 +146,49 @@ export async function consumeSellerDirectMessages(
         await channel.bindQueue(jobberQueue.queue, exchangeName, routingKey);
         channel.consume(
             jobberQueue.queue,
-            async (message: ConsumeMessage | null) => {
-                const {
-                    type,
-                    sellerId,
-                    ongoingJobs,
-                    completedJobs,
-                    totalEarnings,
-                    recentDelivery,
-                    gigSellerId,
-                    count
-                } = JSON.parse(message!.content.toString());
+            async (msg: ConsumeMessage | null) => {
+                try {
+                    const {
+                        type,
+                        sellerId
+                    } = JSON.parse(msg!.content.toString());
 
-                if (type === "create-order") {
-                    await updateSellerOngoingJobsProp(sellerId, ongoingJobs);
-                } else if (type === "approve-order") {
-                    await updateSellerCompletedJobs({
-                        sellerId,
-                        ongoingJobs,
-                        completedJobs,
-                        totalEarnings,
-                        recentDelivery
-                    });
-                } else if (type === "update-gig-count") {
-                    await updateTotalGigCount(`${gigSellerId}`, count);
-                } else if (type === "cancel-order") {
-                    await updateSellerCancelJobsProp(sellerId);
+                    if (type === "create-order") {
+                        const { ongoingJobs } = JSON.parse(msg!.content.toString());
+                        await updateSellerOngoingJobsProp(sellerId, ongoingJobs);
+                        channel.ack(msg!);
+                        return;
+                    } else if (type === "approve-order") {
+                        const { ongoingJobs, completedJobs, totalEarnings, recentDelivery } = JSON.parse(msg!.content.toString());
+                        await updateSellerCompletedJobs({
+                            sellerId,
+                            ongoingJobs,
+                            completedJobs,
+                            totalEarnings,
+                            recentDelivery
+                        });
+                        channel.ack(msg!);
+                        return;
+                    } else if (type === "update-gig-count") {
+                        const { count } = JSON.parse(msg!.content.toString());
+                        await updateTotalGigCount(sellerId, count);
+                        channel.ack(msg!);
+                        return;
+                    } else if (type === "cancel-order") {
+                        await updateSellerCancelJobsProp(sellerId);
+                        channel.ack(msg!);
+                        return;
+                    }
+
+                    channel.reject(msg!, false);
+                } catch (error) {
+                    channel.reject(msg!, false);
+
+                    log.error(
+                        "consuming message got errors. consumeSellerDirectMessages() error",
+                        error
+                    );
                 }
-
-                channel.ack(message!);
             }
         );
     } catch (error) {
@@ -166,7 +204,7 @@ export async function consumeReviewFanoutMessages(
 ): Promise<void> {
     try {
         if (!channel) {
-            channel = (await createConnection()) as Channel;
+            channel = await createConnection();
         }
 
         const { exchangeName } =
@@ -186,29 +224,37 @@ export async function consumeReviewFanoutMessages(
         await channel.bindQueue(jobberQueue.queue, exchangeName, "");
         channel.consume(
             jobberQueue.queue,
-            async (message: ConsumeMessage | null) => {
-                const { type } = JSON.parse(message!.content.toString());
+            async (msg: ConsumeMessage | null) => {
+                try {
+                    const { type } = JSON.parse(msg!.content.toString());
 
-                if (type === "addReview") {
-                    const gig = gigServiceExchangeNamesAndRoutingKeys.updateGig;
-                    const parsedData = JSON.parse(message!.content.toString());
+                    if (type === "addReview") {
+                        const gig = gigServiceExchangeNamesAndRoutingKeys.updateGig;
+                        const parsedData = JSON.parse(msg!.content.toString());
 
-                    if (parsedData.type === "buyer-review") {
-                        await updateSellerReview(parsedData);
-                        await publishDirectMessage(
-                            channel,
-                            gig.exchangeName,
-                            gig.routingKey,
-                            JSON.stringify({
-                                type: "updateGigReview",
-                                gigReview: parsedData
-                            }),
-                            "Message sent to gig service."
-                        );
+                        if (parsedData.type === "buyer-review") {
+                            await updateSellerReview(parsedData);
+                            await publishDirectMessage(
+                                channel,
+                                gig.exchangeName,
+                                gig.routingKey,
+                                JSON.stringify({
+                                    type: "updateGigReview",
+                                    gigReview: parsedData
+                                }),
+                                "Message sent to gig service."
+                            );
+                        }
+                        channel.ack(msg!);
+                        return;
                     }
-                }
 
-                channel.ack(message!);
+                    channel.reject(msg!, false);
+                } catch (error) {
+                    channel.reject(msg!, false);
+
+                    log.error("consuming message got errors. consumeReviewFanoutMessages()", error)
+                }
             }
         );
     } catch (error) {
@@ -224,7 +270,7 @@ export async function consumeSeedGigDirectMessages(
 ): Promise<void> {
     try {
         if (!channel) {
-            channel = (await createConnection()) as Channel;
+            channel = await createConnection();
         }
 
         const { exchangeName, routingKey } =
@@ -275,10 +321,11 @@ export async function consumeSeedGigDirectMessages(
     }
 }
 
+// TODO
 export async function consumeChatDirectMessages(channel: Channel) {
     try {
         if (!channel) {
-            channel = (await createConnection()) as Channel;
+            channel = await createConnection();
         }
 
         const { checkExistingUserForConversation, responseExistingUsersForConversation } =
@@ -315,6 +362,9 @@ export async function consumeChatDirectMessages(channel: Channel) {
             channel.ack(message!)
         })
     } catch (error) {
-
+        log.error(
+            "UsersService QueueConsumer consumeChatDirectMessages() method error:",
+            error
+        );
     }
 }

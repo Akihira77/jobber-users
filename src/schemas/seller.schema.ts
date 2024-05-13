@@ -9,7 +9,7 @@ export const sellerSchema: ObjectSchema = Joi.object().keys({
         "any.required": "Fullname is required"
     }),
     username: Joi.string().required(),
-    email: Joi.string().required(),
+    email: Joi.string().required().email(),
     profilePublicId: Joi.string().optional().allow(null, ""),
     profilePicture: Joi.string().required().messages({
         "string.base": "Please add a profile picture",

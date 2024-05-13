@@ -1,25 +1,132 @@
-import {
-    BadRequestError,
-    IBuyerDocument,
-    IEducation,
-    IExperience,
-    ISellerDocument
-} from "@Akihira77/jobber-shared";
+import { BadRequestError, IBuyerDocument, IEducation, IExperience, ISellerDocument } from "@Akihira77/jobber-shared";
 import { faker } from "@faker-js/faker";
-import { getRandomBuyers } from "@users/services/buyer.service";
-import { createSeller, getSellerByEmail } from "@users/services/seller.service";
+import { sellerSchema } from "@users/schemas/seller.schema";
+import * as sellerService from "@users/services/seller.service";
+import * as buyerService from "@users/services/buyer.service";
 import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
-import { floor, random, sample, sampleSize } from "lodash";
+import { sampleSize, sample, floor, random } from "lodash";
 import { v4 as uuidv4 } from "uuid";
 
-export async function seller(req: Request, res: Response): Promise<void> {
+export async function createSeller(req: Request, res: Response): Promise<void> {
+    const { error } = sellerSchema.validate(req.body);
+
+    if (error?.details) {
+        throw new BadRequestError(
+            error.details[0].message,
+            "Create seller() method error"
+        );
+    }
+
+    const existedSeller =
+        (await sellerService.getSellerByEmail(req.body.email ?? "")) ??
+        (await sellerService.getSellerByUsername(req.body.username ?? ""));
+
+    if (existedSeller) {
+        throw new BadRequestError(
+            "Seller already exist. Go to your account page to update",
+            "Create seller() method error"
+        );
+    }
+
+    const sellerData: ISellerDocument = {
+        fullName: req.body.fullName,
+        username: req.body.username,
+        email: req.body.email,
+        profilePicture: req.body.profilePicture,
+        description: req.body.description,
+        country: req.body.country,
+        skills: req.body.skills,
+        languages: req.body.languages,
+        profilePublicId: req.body.profilePublicId,
+        oneliner: req.body.oneliner,
+        responseTime: req.body.responseTime,
+        experience: req.body.experience,
+        education: req.body.education,
+        socialLinks: req.body.socialLinks,
+        certificates: req.body.certificates
+    };
+    const createdSeller = await sellerService.createSeller(sellerData);
+
+    res.status(StatusCodes.CREATED).json({
+        message: "Seller created successfully.",
+        seller: createdSeller
+    });
+}
+
+export async function getSellerById(req: Request, res: Response): Promise<void> {
+    const seller = await sellerService.getSellerById(req.params.sellerId);
+
+    res.status(StatusCodes.OK).json({ message: "Seller profile", seller });
+}
+
+export async function getSellerByUsername(req: Request, res: Response): Promise<void> {
+    const seller = await sellerService.getSellerByUsername(req.params.username);
+
+    res.status(StatusCodes.OK).json({ message: "Seller profile", seller });
+}
+
+export async function getRandomSellers(
+    req: Request,
+    res: Response
+): Promise<void> {
+    const sellers = await sellerService.getRandomSellers(parseInt(req.params.count));
+
+    res.status(StatusCodes.OK).json({
+        message: "Random sellers profile",
+        sellers
+    });
+}
+
+export async function updateSeller(req: Request, res: Response): Promise<void> {
+    const existedSeller = await sellerService.getSellerById(req.params.sellerId);
+    if (!existedSeller) {
+        throw new BadRequestError(
+            "Seller is not found",
+            "Update seller() method"
+        );
+    }
+
+    const { error } = sellerSchema.validate(req.body);
+
+    if (error?.details) {
+        throw new BadRequestError(
+            error.details[0].message,
+            "Update seller() method error"
+        );
+    }
+
+    const sellerData: ISellerDocument = {
+        fullName: req.body.fullName,
+        profilePicture: req.body.profilePicture,
+        description: req.body.description,
+        country: req.body.country,
+        skills: req.body.skills,
+        languages: req.body.languages,
+        profilePublicId: req.body.profilePublicId,
+        oneliner: req.body.oneliner,
+        responseTime: req.body.responseTime,
+        experience: req.body.experience,
+        education: req.body.education,
+        socialLinks: req.body.socialLinks,
+        certificates: req.body.certificates
+    };
+
+    const updatedSeller = await sellerService.updateSeller(req.params.sellerId, sellerData);
+
+    res.status(StatusCodes.OK).json({
+        message: "Seller updated successfully.",
+        seller: updatedSeller
+    });
+}
+
+export async function populateSeller(req: Request, res: Response): Promise<void> {
     const { count } = req.params;
-    const buyers: IBuyerDocument[] = await getRandomBuyers(parseInt(count));
+    const buyers: IBuyerDocument[] = await buyerService.getRandomBuyers(parseInt(count));
 
     for (let i = 0; i < buyers.length; i++) {
         const buyer: IBuyerDocument = buyers[i];
-        const existedSeller: ISellerDocument | null = await getSellerByEmail(
+        const existedSeller: ISellerDocument | null = await sellerService.getSellerByEmail(
             `${buyer.email}`
         );
 
@@ -93,7 +200,7 @@ export async function seller(req: Request, res: Response): Promise<void> {
             ]
         };
 
-        await createSeller(sellerData);
+        await sellerService.createSeller(sellerData);
     }
 
     res.status(StatusCodes.CREATED).json({
