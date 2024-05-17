@@ -1,4 +1,10 @@
-import { BadRequestError, IBuyerDocument, IEducation, IExperience, ISellerDocument } from "@Akihira77/jobber-shared";
+import {
+    BadRequestError,
+    IBuyerDocument,
+    IEducation,
+    IExperience,
+    ISellerDocument
+} from "@Akihira77/jobber-shared";
 import { faker } from "@faker-js/faker";
 import { sellerSchema } from "@users/schemas/seller.schema";
 import * as sellerService from "@users/services/seller.service";
@@ -54,13 +60,19 @@ export async function createSeller(req: Request, res: Response): Promise<void> {
     });
 }
 
-export async function getSellerById(req: Request, res: Response): Promise<void> {
+export async function getSellerById(
+    req: Request,
+    res: Response
+): Promise<void> {
     const seller = await sellerService.getSellerById(req.params.sellerId);
 
     res.status(StatusCodes.OK).json({ message: "Seller profile", seller });
 }
 
-export async function getSellerByUsername(req: Request, res: Response): Promise<void> {
+export async function getSellerByUsername(
+    req: Request,
+    res: Response
+): Promise<void> {
     const seller = await sellerService.getSellerByUsername(req.params.username);
 
     res.status(StatusCodes.OK).json({ message: "Seller profile", seller });
@@ -70,7 +82,9 @@ export async function getRandomSellers(
     req: Request,
     res: Response
 ): Promise<void> {
-    const sellers = await sellerService.getRandomSellers(parseInt(req.params.count));
+    const sellers = await sellerService.getRandomSellers(
+        parseInt(req.params.count)
+    );
 
     res.status(StatusCodes.OK).json({
         message: "Random sellers profile",
@@ -79,7 +93,9 @@ export async function getRandomSellers(
 }
 
 export async function updateSeller(req: Request, res: Response): Promise<void> {
-    const existedSeller = await sellerService.getSellerById(req.params.sellerId);
+    const existedSeller = await sellerService.getSellerById(
+        req.params.sellerId
+    );
     if (!existedSeller) {
         throw new BadRequestError(
             "Seller is not found",
@@ -112,7 +128,10 @@ export async function updateSeller(req: Request, res: Response): Promise<void> {
         certificates: req.body.certificates
     };
 
-    const updatedSeller = await sellerService.updateSeller(req.params.sellerId, sellerData);
+    const updatedSeller = await sellerService.updateSeller(
+        req.params.sellerId,
+        sellerData
+    );
 
     res.status(StatusCodes.OK).json({
         message: "Seller updated successfully.",
@@ -120,15 +139,19 @@ export async function updateSeller(req: Request, res: Response): Promise<void> {
     });
 }
 
-export async function populateSeller(req: Request, res: Response): Promise<void> {
+export async function populateSeller(
+    req: Request,
+    res: Response
+): Promise<void> {
     const { count } = req.params;
-    const buyers: IBuyerDocument[] = await buyerService.getRandomBuyers(parseInt(count));
+    const buyers: IBuyerDocument[] = await buyerService.getRandomBuyers(
+        parseInt(count)
+    );
 
     for (let i = 0; i < buyers.length; i++) {
         const buyer: IBuyerDocument = buyers[i];
-        const existedSeller: ISellerDocument | null = await sellerService.getSellerByEmail(
-            `${buyer.email}`
-        );
+        const existedSeller: ISellerDocument | null =
+            await sellerService.getSellerByEmail(buyer.email!);
 
         if (existedSeller) {
             throw new BadRequestError(
@@ -200,11 +223,12 @@ export async function populateSeller(req: Request, res: Response): Promise<void>
             ]
         };
 
-        await sellerService.createSeller(sellerData);
+        sellerService.createSeller(sellerData);
     }
 
     res.status(StatusCodes.CREATED).json({
-        message: "Sellers created successfully"
+        message: "Sellers created successfully",
+        total: count
     });
 }
 

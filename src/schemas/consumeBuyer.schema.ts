@@ -6,4 +6,4 @@ export const authBuyerSchema = Joi.object({
     profilePicture: Joi.string().required(),
     country: Joi.string().required(),
     createdAt: Joi.string().required()
-})
+});

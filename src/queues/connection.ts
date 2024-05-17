@@ -1,13 +1,5 @@
-import { winstonLogger } from "@Akihira77/jobber-shared";
-import { ELASTIC_SEARCH_URL, RABBITMQ_ENDPOINT } from "@users/config";
+import { logger, RABBITMQ_ENDPOINT } from "@users/config";
 import client, { Connection, Channel } from "amqplib";
-import { Logger } from "winston";
-
-const log: Logger = winstonLogger(
-    `${ELASTIC_SEARCH_URL}`,
-    "sellerQueueConnection",
-    "debug"
-);
 
 export async function createConnection(): Promise<Channel> {
     try {
@@ -15,13 +7,18 @@ export async function createConnection(): Promise<Channel> {
             `${RABBITMQ_ENDPOINT}`
         );
         const channel: Channel = await connection.createChannel();
-        log.info("Users server connected to queue successfully...");
+        logger("queues/connection.ts - createConnection()").info(
+            "UsersService connected to RabbitMQ successfully..."
+        );
         closeConnection(channel, connection);
 
         return channel;
     } catch (error) {
-        log.error("UsersService createConnection() method error:", error);
-        process.exit(1)
+        logger("queues/connection.ts - createConnection()").error(
+            "UsersService createConnection() method error:",
+            error
+        );
+        process.exit(1);
     }
 }
 

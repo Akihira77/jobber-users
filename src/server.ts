@@ -6,16 +6,9 @@ import jwt from "jsonwebtoken";
 import {
     CustomError,
     IAuthPayload,
-    IErrorResponse,
-    winstonLogger
+    IErrorResponse
 } from "@Akihira77/jobber-shared";
-import { Logger } from "winston";
-import {
-    API_GATEWAY_URL,
-    ELASTIC_SEARCH_URL,
-    JWT_TOKEN,
-    PORT
-} from "@users/config";
+import { API_GATEWAY_URL, JWT_TOKEN, logger, PORT } from "@users/config";
 import {
     Application,
     NextFunction,
@@ -37,12 +30,6 @@ import {
     consumeSellerDirectMessages
 } from "@users/queues/users.consumer";
 import { Channel } from "amqplib";
-
-const log: Logger = winstonLogger(
-    `${ELASTIC_SEARCH_URL}`,
-    "usersServer",
-    "debug"
-);
 
 export function start(app: Application): void {
     securityMiddleware(app);
@@ -108,7 +95,10 @@ function usersErrorHandler(app: Application): void {
             res: Response,
             next: NextFunction
         ) => {
-            log.error(`UsersService ${error.comingFrom}:`, error);
+            logger("server.ts - usersErrorHandler()").error(
+                `UsersService ${error.comingFrom}:`,
+                error
+            );
 
             if (error instanceof CustomError) {
                 res.status(error.statusCode).json(error.serializeErrors());
@@ -121,11 +111,18 @@ function usersErrorHandler(app: Application): void {
 function startServer(app: Application): void {
     try {
         const httpServer: http.Server = new http.Server(app);
-        log.info(`Users server has started with pid ${process.pid}`);
+        logger("server.ts - startServer()").info(
+            `UsersService has started with pid ${process.pid}`
+        );
         httpServer.listen(Number(PORT), () => {
-            log.info(`Users server running on port ${PORT}`);
+            logger("server.ts - startServer()").info(
+                `UsersService running on port ${PORT}`
+            );
         });
     } catch (error) {
-        log.error("UsersService startServer() method error:", error);
+        logger("server.ts - startServer()").error(
+            "UsersService startServer() method error:",
+            error
+        );
     }
 }
