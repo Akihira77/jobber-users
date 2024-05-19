@@ -30,6 +30,7 @@ import {
     consumeSellerDirectMessages
 } from "@users/queues/users.consumer";
 import { Channel } from "amqplib";
+import morgan from "morgan";
 
 export function start(app: Application): void {
     securityMiddleware(app);
@@ -69,6 +70,7 @@ function standardMiddleware(app: Application): void {
     app.use(compression());
     app.use(json({ limit: "200mb" }));
     app.use(urlencoded({ extended: true, limit: "200mb" }));
+    app.use(morgan("dev"))
 }
 
 function routesMiddleware(app: Application): void {
