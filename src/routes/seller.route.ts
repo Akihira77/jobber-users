@@ -1,15 +1,18 @@
+import { SellerController } from "@users/controllers/seller.controller";
 import express from "express";
-import * as sellerController from "@users/controllers/seller.controller";
 
 const router = express.Router();
 
-export function sellerRoutes() {
-    router.get("/id/:sellerId", sellerController.getSellerById);
-    router.get("/username/:username", sellerController.getSellerByUsername);
-    router.get("/random/:count", sellerController.getRandomSellers);
-    router.post("/create", sellerController.createSeller);
-    router.put("/seed/:count", sellerController.populateSeller);
-    router.put("/:sellerId", sellerController.updateSeller);
+export function sellerRoutes(controller: SellerController) {
+    router.get("/id/:sellerId", controller.getSellerById.bind(controller));
+    router.get(
+        "/username/:username",
+        controller.getSellerByUsername.bind(controller)
+    );
+    router.get("/random/:count", controller.getRandomSellers.bind(controller));
+    router.post("/create", controller.createSeller.bind(controller));
+    router.put("/seed/:count", controller.populateSeller.bind(controller));
+    router.put("/:sellerId", controller.updateSeller.bind(controller));
 
     return router;
 }

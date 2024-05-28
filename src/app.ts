@@ -1,13 +1,32 @@
 import { databaseConnection } from "@users/database";
-import { cloudinaryConfig } from "@users/config";
 import express, { Express } from "express";
 import { start } from "@users/server";
+import cloudinary from "cloudinary";
+import { winstonLogger } from "@Akihira77/jobber-shared";
+import { Logger } from "winston";
 
-const initialize = (): void => {
-    cloudinaryConfig();
-    databaseConnection();
+import {
+    CLOUD_API_KEY,
+    CLOUD_API_SECRET,
+    CLOUD_NAME,
+    ELASTIC_SEARCH_URL
+} from "./config";
+
+const initialize = async (): Promise<void> => {
+    const logger = (moduleName?: string): Logger =>
+        winstonLogger(
+            `${ELASTIC_SEARCH_URL}`,
+            moduleName ?? "Users Service",
+            "debug"
+        );
+    cloudinary.v2.config({
+        cloud_name: CLOUD_NAME,
+        api_key: CLOUD_API_KEY,
+        api_secret: CLOUD_API_SECRET
+    });
+    await databaseConnection(logger);
     const app: Express = express();
-    start(app);
+    await start(app, logger);
 };
 
 initialize();

@@ -8,7 +8,7 @@ import {
     IAuthPayload,
     IErrorResponse
 } from "@Akihira77/jobber-shared";
-import { API_GATEWAY_URL, JWT_TOKEN, logger, PORT } from "@users/config";
+import { API_GATEWAY_URL, JWT_TOKEN, PORT } from "@users/config";
 import {
     Application,
     NextFunction,
@@ -20,26 +20,23 @@ import {
 import hpp from "hpp";
 import helmet from "helmet";
 import cors from "cors";
-import { checkConnection } from "@users/elasticsearch";
 import { appRoutes } from "@users/routes";
-import { createConnection } from "@users/queues/connection";
-import {
-    consumeBuyerDirectMessages,
-    consumeReviewFanoutMessages,
-    consumeSeedGigDirectMessages,
-    consumeSellerDirectMessages
-} from "@users/queues/users.consumer";
-import { Channel } from "amqplib";
-import morgan from "morgan";
+import { Logger } from "winston";
 
-export function start(app: Application): void {
+import { UsersQueue } from "./queues/users.queue";
+import { ElasticSearchClient } from "./elasticsearch";
+
+export async function start(
+    app: Application,
+    logger: (moduleName: string) => Logger
+): Promise<void> {
+    await startQueues(logger);
+    startElasticSearch(logger);
     securityMiddleware(app);
     standardMiddleware(app);
-    routesMiddleware(app);
-    startQueues();
-    startElasticSearch();
-    usersErrorHandler(app);
-    startServer(app);
+    routesMiddleware(app, logger);
+    usersErrorHandler(app, logger);
+    startServer(app, logger);
 }
 
 function securityMiddleware(app: Application): void {
@@ -70,26 +67,38 @@ function standardMiddleware(app: Application): void {
     app.use(compression());
     app.use(json({ limit: "200mb" }));
     app.use(urlencoded({ extended: true, limit: "200mb" }));
-    app.use(morgan("dev"))
 }
 
-function routesMiddleware(app: Application): void {
-    appRoutes(app);
+function routesMiddleware(
+    app: Application,
+    logger: (moduleName: string) => Logger
+): void {
+    appRoutes(app, logger);
 }
 
-async function startQueues(): Promise<void> {
-    const channel = (await createConnection()) as Channel;
-    consumeBuyerDirectMessages(channel);
-    consumeSellerDirectMessages(channel);
-    consumeReviewFanoutMessages(channel);
-    consumeSeedGigDirectMessages(channel);
+async function startQueues(
+    logger: (moduleName: string) => Logger
+): Promise<UsersQueue> {
+    const queue = new UsersQueue(null, logger);
+    queue.consumeBuyerDirectMessages();
+    queue.consumeSellerDirectMessages();
+    queue.consumeReviewFanoutMessages();
+    queue.consumeSeedGigDirectMessages();
+
+    return queue;
 }
 
-function startElasticSearch(): void {
-    checkConnection();
+async function startElasticSearch(
+    logger: (moduleName: string) => Logger
+): Promise<void> {
+    const elastic = new ElasticSearchClient(logger);
+    await elastic.checkConnection();
 }
 
-function usersErrorHandler(app: Application): void {
+function usersErrorHandler(
+    app: Application,
+    logger: (moduleName: string) => Logger
+): void {
     app.use(
         (
             error: IErrorResponse,
@@ -110,7 +119,10 @@ function usersErrorHandler(app: Application): void {
     );
 }
 
-function startServer(app: Application): void {
+function startServer(
+    app: Application,
+    logger: (moduleName: string) => Logger
+): void {
     try {
         const httpServer: http.Server = new http.Server(app);
         logger("server.ts - startServer()").info(

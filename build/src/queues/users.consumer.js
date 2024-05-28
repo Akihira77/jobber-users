@@ -1,79 +1,53 @@
-import { IBuyerDocument } from "@Akihira77/jobber-shared";
-import {
-    buyerServiceExchangeNamesAndRoutingKeys,
-    chatServiceExchangeNamesAndRoutingKeys,
-    gigServiceExchangeNamesAndRoutingKeys,
-    logger,
-    reviewServiceExchangeNamesAndRoutingKeys
-} from "@users/config";
-import { Channel, ConsumeMessage } from "amqplib";
-import { createConnection } from "@users/queues/connection";
-import {
-    createBuyer,
-    getBuyerByUsername,
-    updateBuyerPurchasedGigsProp
-} from "@users/services/buyer.service";
-import {
-    getRandomSellers,
-    updateSellerCancelJobsProp,
-    updateSellerCompletedJobs,
-    updateSellerOngoingJobsProp,
-    updateSellerReview,
-    updateTotalGigCount
-} from "@users/services/seller.service";
-import { authBuyerSchema } from "@users/schemas/consumeBuyer.schema";
-
-import { publishDirectMessage } from "./users.producer";
-
-export async function consumeBuyerDirectMessages(
-    channel: Channel
-): Promise<void> {
-    try {
-        if (!channel) {
-            channel = await createConnection();
-        }
-
-        const { exchangeName, routingKey } =
-            buyerServiceExchangeNamesAndRoutingKeys.buyer;
-        const queueName = "user-buyer-queue";
-
-        await channel.assertExchange(exchangeName, "direct");
-
-        // if queue not exist it will create new
-        const jobberQueue = await channel.assertQueue(queueName, {
-            durable: true,
-            autoDelete: false
-        });
-
-        // create path between exchange and queue using routingKey
-        await channel.bindQueue(jobberQueue.queue, exchangeName, routingKey);
-        channel.consume(
-            jobberQueue.queue,
-            async (msg: ConsumeMessage | null) => {
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.consumeChatDirectMessages = exports.consumeSeedGigDirectMessages = exports.consumeReviewFanoutMessages = exports.consumeSellerDirectMessages = exports.consumeBuyerDirectMessages = void 0;
+const config_1 = require("../config");
+const connection_1 = require("../queues/connection");
+const buyer_service_1 = require("../services/buyer.service");
+const seller_service_1 = require("../services/seller.service");
+const consumeBuyer_schema_1 = require("../schemas/consumeBuyer.schema");
+const users_producer_1 = require("./users.producer");
+function consumeBuyerDirectMessages(channel) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            if (!channel) {
+                channel = yield (0, connection_1.createConnection)();
+            }
+            const { exchangeName, routingKey } = config_1.buyerServiceExchangeNamesAndRoutingKeys.buyer;
+            const queueName = "user-buyer-queue";
+            yield channel.assertExchange(exchangeName, "direct");
+            // if queue not exist it will create new
+            const jobberQueue = yield channel.assertQueue(queueName, {
+                durable: true,
+                autoDelete: false
+            });
+            // create path between exchange and queue using routingKey
+            yield channel.bindQueue(jobberQueue.queue, exchangeName, routingKey);
+            channel.consume(jobberQueue.queue, (msg) => __awaiter(this, void 0, void 0, function* () {
                 try {
-                    const { type } = JSON.parse(msg!.content.toString());
-
+                    const { type } = JSON.parse(msg.content.toString());
                     if (type === "auth") {
-                        const {
-                            username,
-                            email,
-                            profilePicture,
-                            country,
-                            createdAt
-                        } = JSON.parse(msg!.content.toString());
-
-                        const { error } = authBuyerSchema.validate({
+                        const { username, email, profilePicture, country, createdAt } = JSON.parse(msg.content.toString());
+                        const { error } = consumeBuyer_schema_1.authBuyerSchema.validate({
                             username,
                             email,
                             profilePicture,
                             country,
                             createdAt
                         });
-                        if (error?.details) {
+                        if (error === null || error === void 0 ? void 0 : error.details) {
                             throw new Error(error.details[0].message);
                         }
-
-                        const buyerData: IBuyerDocument = {
+                        const buyerData = {
                             username,
                             email,
                             profilePicture,
@@ -81,244 +55,162 @@ export async function consumeBuyerDirectMessages(
                             purchasedGigs: [],
                             createdAt
                         };
-
-                        await createBuyer(buyerData);
-                        channel.ack(msg!);
+                        yield (0, buyer_service_1.createBuyer)(buyerData);
+                        channel.ack(msg);
                         return;
-                    } else if (
-                        ["cancel-order", "purchased-gigs"].includes(type)
-                    ) {
-                        const { buyerId, purchasedGigs } = JSON.parse(
-                            msg!.content.toString()
-                        );
-
+                    }
+                    else if (["cancel-order", "purchased-gigs"].includes(type)) {
+                        const { buyerId, purchasedGigs } = JSON.parse(msg.content.toString());
                         if (!(buyerId || purchasedGigs)) {
                             throw new Error("required field is null");
                         }
-
-                        await updateBuyerPurchasedGigsProp(
-                            buyerId,
-                            purchasedGigs,
-                            type
-                        );
-                        channel.ack(msg!);
+                        yield (0, buyer_service_1.updateBuyerPurchasedGigsProp)(buyerId, purchasedGigs, type);
+                        channel.ack(msg);
                         return;
                     }
-
-                    channel.reject(msg!, false);
-                } catch (error) {
-                    channel.reject(msg!, false);
-
-                    logger(
-                        "queues/users.consumer.ts - consumeBuyerDirectMessages()"
-                    ).error(
-                        "consuming message got errors. consumeBuyerDirectMessages() error",
-                        error
-                    );
+                    channel.reject(msg, false);
                 }
-            }
-        );
-    } catch (error) {
-        logger("queues/users.consumer.ts - consumeBuyerDirectMessages()").error(
-            "UsersService QueueConsumer consumeBuyerDirectMessages() method error:",
-            error
-        );
-    }
-}
-
-export async function consumeSellerDirectMessages(
-    channel: Channel
-): Promise<void> {
-    try {
-        if (!channel) {
-            channel = await createConnection();
+                catch (error) {
+                    channel.reject(msg, false);
+                    (0, config_1.logger)("queues/users.consumer.ts - consumeBuyerDirectMessages()").error("consuming message got errors. consumeBuyerDirectMessages() error", error);
+                }
+            }));
         }
-
-        const { exchangeName, routingKey } =
-            buyerServiceExchangeNamesAndRoutingKeys.seller;
-        const queueName = "user-seller-queue";
-
-        await channel.assertExchange(exchangeName, "direct");
-
-        // if queue not exist it will create new
-        const jobberQueue = await channel.assertQueue(queueName, {
-            durable: true,
-            autoDelete: false
-        });
-
-        // create path between exchange and queue using routingKey
-        await channel.bindQueue(jobberQueue.queue, exchangeName, routingKey);
-        channel.consume(
-            jobberQueue.queue,
-            async (msg: ConsumeMessage | null) => {
+        catch (error) {
+            (0, config_1.logger)("queues/users.consumer.ts - consumeBuyerDirectMessages()").error("UsersService QueueConsumer consumeBuyerDirectMessages() method error:", error);
+        }
+    });
+}
+exports.consumeBuyerDirectMessages = consumeBuyerDirectMessages;
+function consumeSellerDirectMessages(channel) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            if (!channel) {
+                channel = yield (0, connection_1.createConnection)();
+            }
+            const { exchangeName, routingKey } = config_1.buyerServiceExchangeNamesAndRoutingKeys.seller;
+            const queueName = "user-seller-queue";
+            yield channel.assertExchange(exchangeName, "direct");
+            // if queue not exist it will create new
+            const jobberQueue = yield channel.assertQueue(queueName, {
+                durable: true,
+                autoDelete: false
+            });
+            // create path between exchange and queue using routingKey
+            yield channel.bindQueue(jobberQueue.queue, exchangeName, routingKey);
+            channel.consume(jobberQueue.queue, (msg) => __awaiter(this, void 0, void 0, function* () {
                 try {
-                    const { type, sellerId } = JSON.parse(
-                        msg!.content.toString()
-                    );
-
+                    const { type, sellerId } = JSON.parse(msg.content.toString());
                     if (type === "create-order") {
-                        const { ongoingJobs } = JSON.parse(
-                            msg!.content.toString()
-                        );
-                        await updateSellerOngoingJobsProp(
-                            sellerId,
-                            ongoingJobs
-                        );
-                        channel.ack(msg!);
+                        const { ongoingJobs } = JSON.parse(msg.content.toString());
+                        yield (0, seller_service_1.updateSellerOngoingJobsProp)(sellerId, ongoingJobs);
+                        channel.ack(msg);
                         return;
-                    } else if (type === "approve-order") {
-                        const {
-                            ongoingJobs,
-                            completedJobs,
-                            totalEarnings,
-                            recentDelivery
-                        } = JSON.parse(msg!.content.toString());
-                        await updateSellerCompletedJobs({
+                    }
+                    else if (type === "approve-order") {
+                        const { ongoingJobs, completedJobs, totalEarnings, recentDelivery } = JSON.parse(msg.content.toString());
+                        yield (0, seller_service_1.updateSellerCompletedJobs)({
                             sellerId,
                             ongoingJobs,
                             completedJobs,
                             totalEarnings,
                             recentDelivery
                         });
-                        channel.ack(msg!);
-                        return;
-                    } else if (type === "update-gig-count") {
-                        const { count } = JSON.parse(msg!.content.toString());
-                        await updateTotalGigCount(sellerId, Number(count));
-                        channel.ack(msg!);
-                        return;
-                    } else if (type === "cancel-order") {
-                        await updateSellerCancelJobsProp(sellerId);
-                        channel.ack(msg!);
+                        channel.ack(msg);
                         return;
                     }
-
-                    channel.reject(msg!, false);
-                } catch (error) {
-                    channel.reject(msg!, false);
-
-                    logger(
-                        "queues/users.consumers.ts - consumeSellerDirectMessages()"
-                    ).error(
-                        "consuming message got errors. consumeSellerDirectMessages() error",
-                        error
-                    );
+                    else if (type === "update-gig-count") {
+                        const { count } = JSON.parse(msg.content.toString());
+                        yield (0, seller_service_1.updateTotalGigCount)(sellerId, Number(count));
+                        channel.ack(msg);
+                        return;
+                    }
+                    else if (type === "cancel-order") {
+                        yield (0, seller_service_1.updateSellerCancelJobsProp)(sellerId);
+                        channel.ack(msg);
+                        return;
+                    }
+                    channel.reject(msg, false);
                 }
-            }
-        );
-    } catch (error) {
-        logger(
-            "queues/users.consumers.ts - consumeSellerDirectMessages()"
-        ).error(
-            "UsersService QueueConsumer consumeBuyerDirectMessages() method error:",
-            error
-        );
-    }
-}
-
-export async function consumeReviewFanoutMessages(
-    channel: Channel
-): Promise<void> {
-    try {
-        if (!channel) {
-            channel = await createConnection();
+                catch (error) {
+                    channel.reject(msg, false);
+                    (0, config_1.logger)("queues/users.consumers.ts - consumeSellerDirectMessages()").error("consuming message got errors. consumeSellerDirectMessages() error", error);
+                }
+            }));
         }
-
-        const { exchangeName } =
-            reviewServiceExchangeNamesAndRoutingKeys.review;
-        const queueName = "seller-review-queue";
-
-        await channel.assertExchange(exchangeName, "fanout");
-
-        // if queue not exist it will create new
-        const jobberQueue = await channel.assertQueue(queueName, {
-            durable: true,
-            autoDelete: false
-        });
-
-        // create path between exchange and queue using routingKey
-        // but this is fanout mode so just empty routingKey / dont need routingKey
-        await channel.bindQueue(jobberQueue.queue, exchangeName, "");
-        channel.consume(
-            jobberQueue.queue,
-            async (msg: ConsumeMessage | null) => {
+        catch (error) {
+            (0, config_1.logger)("queues/users.consumers.ts - consumeSellerDirectMessages()").error("UsersService QueueConsumer consumeBuyerDirectMessages() method error:", error);
+        }
+    });
+}
+exports.consumeSellerDirectMessages = consumeSellerDirectMessages;
+function consumeReviewFanoutMessages(channel) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            if (!channel) {
+                channel = yield (0, connection_1.createConnection)();
+            }
+            const { exchangeName } = config_1.reviewServiceExchangeNamesAndRoutingKeys.review;
+            const queueName = "seller-review-queue";
+            yield channel.assertExchange(exchangeName, "fanout");
+            // if queue not exist it will create new
+            const jobberQueue = yield channel.assertQueue(queueName, {
+                durable: true,
+                autoDelete: false
+            });
+            // create path between exchange and queue using routingKey
+            // but this is fanout mode so just empty routingKey / dont need routingKey
+            yield channel.bindQueue(jobberQueue.queue, exchangeName, "");
+            channel.consume(jobberQueue.queue, (msg) => __awaiter(this, void 0, void 0, function* () {
                 try {
-                    const { type } = JSON.parse(msg!.content.toString());
-
+                    const { type } = JSON.parse(msg.content.toString());
                     if (type === "addReview") {
-                        const gig =
-                            gigServiceExchangeNamesAndRoutingKeys.updateGig;
-                        const parsedData = JSON.parse(msg!.content.toString());
-
+                        const gig = config_1.gigServiceExchangeNamesAndRoutingKeys.updateGig;
+                        const parsedData = JSON.parse(msg.content.toString());
                         if (parsedData.type === "buyer-review") {
-                            await updateSellerReview(parsedData);
-                            await publishDirectMessage(
-                                channel,
-                                gig.exchangeName,
-                                gig.routingKey,
-                                JSON.stringify({
-                                    type: "updateGigReview",
-                                    gigReview: parsedData
-                                }),
-                                "Message sent to gig service."
-                            );
+                            yield (0, seller_service_1.updateSellerReview)(parsedData);
+                            yield (0, users_producer_1.publishDirectMessage)(channel, gig.exchangeName, gig.routingKey, JSON.stringify({
+                                type: "updateGigReview",
+                                gigReview: parsedData
+                            }), "Message sent to gig service.");
                         }
-                        channel.ack(msg!);
+                        channel.ack(msg);
                         return;
                     }
-
-                    channel.reject(msg!, false);
-                } catch (error) {
-                    channel.reject(msg!, false);
-
-                    logger(
-                        "queues/users.consumer.ts - consumeReviewFanoutMessages()"
-                    ).error(
-                        "consuming message got errors. consumeReviewFanoutMessages()",
-                        error
-                    );
+                    channel.reject(msg, false);
                 }
-            }
-        );
-    } catch (error) {
-        logger(
-            "queues/users.consumer.ts - consumeReviewFanoutMessages()"
-        ).error(
-            "UsersService QueueConsumer consumeBuyerDirectMessages() method error:",
-            error
-        );
-    }
-}
-
-export async function consumeSeedGigDirectMessages(
-    channel: Channel
-): Promise<void> {
-    try {
-        if (!channel) {
-            channel = await createConnection();
+                catch (error) {
+                    channel.reject(msg, false);
+                    (0, config_1.logger)("queues/users.consumer.ts - consumeReviewFanoutMessages()").error("consuming message got errors. consumeReviewFanoutMessages()", error);
+                }
+            }));
         }
-
-        const { exchangeName, routingKey } =
-            gigServiceExchangeNamesAndRoutingKeys.getSellers;
-        const queueName = "user-gig-queue";
-
-        await channel.assertExchange(exchangeName, "direct");
-
-        // if queue not exist it will create new
-        const jobberQueue = await channel.assertQueue(queueName, {
-            durable: true,
-            autoDelete: false
-        });
-
-        // create path between exchange and queue using routingKey
-        await channel.bindQueue(jobberQueue.queue, exchangeName, routingKey);
-        channel.consume(
-            jobberQueue.queue,
-            async (message: ConsumeMessage | null) => {
-                const { type } = JSON.parse(message!.content.toString());
-
+        catch (error) {
+            (0, config_1.logger)("queues/users.consumer.ts - consumeReviewFanoutMessages()").error("UsersService QueueConsumer consumeBuyerDirectMessages() method error:", error);
+        }
+    });
+}
+exports.consumeReviewFanoutMessages = consumeReviewFanoutMessages;
+function consumeSeedGigDirectMessages(channel) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            if (!channel) {
+                channel = yield (0, connection_1.createConnection)();
+            }
+            const { exchangeName, routingKey } = config_1.gigServiceExchangeNamesAndRoutingKeys.getSellers;
+            const queueName = "user-gig-queue";
+            yield channel.assertExchange(exchangeName, "direct");
+            // if queue not exist it will create new
+            const jobberQueue = yield channel.assertQueue(queueName, {
+                durable: true,
+                autoDelete: false
+            });
+            // create path between exchange and queue using routingKey
+            yield channel.bindQueue(jobberQueue.queue, exchangeName, routingKey);
+            channel.consume(jobberQueue.queue, (message) => __awaiter(this, void 0, void 0, function* () {
+                const { type } = JSON.parse(message.content.toString());
                 if (type === "getSellers") {
-                    const { count } = JSON.parse(message!.content.toString());
+                    const { count } = JSON.parse(message.content.toString());
                     const sellers = [
                         {
                             _id: "6644215d6fdffcf6c3a6d8da",
@@ -326,12 +218,9 @@ export async function consumeSeedGigDirectMessages(
                             username: "Shutunderwri",
                             email: "angela.lemke20@hotmail.com",
                             country: "Palau",
-                            profilePicture:
-                                "https://picsum.photos/seed/IiWMTe/640/480",
-                            description:
-                                "The automobile layout consists of a front-engine design, with transaxle-type transmissions mounted at the rear of the engine and four wheel drive",
-                            profilePublicId:
-                                "67057b75-8d8f-4fbb-b331-f03e2998b257",
+                            profilePicture: "https://picsum.photos/seed/IiWMTe/640/480",
+                            description: "The automobile layout consists of a front-engine design, with transaxle-type transmissions mounted at the rear of the engine and four wheel drive",
+                            profilePublicId: "67057b75-8d8f-4fbb-b331-f03e2998b257",
                             oneliner: "crafty velvety once why unto",
                             languages: [
                                 {
@@ -373,8 +262,7 @@ export async function consumeSeedGigDirectMessages(
                                     title: "Product Integration Associate",
                                     startDate: "July 2023",
                                     endDate: "June 2025",
-                                    description:
-                                        "The beautiful range of Apple Naturalé that has an exciting mix of natural ingredients. With the Good",
+                                    description: "The beautiful range of Apple Naturalé that has an exciting mix of natural ingredients. With the Good",
                                     currentlyWorkingHere: false,
                                     _id: "6644215d6fdffcf6c3a6d8de"
                                 },
@@ -383,19 +271,16 @@ export async function consumeSeedGigDirectMessages(
                                     title: "Lead Directives Specialist",
                                     startDate: "October 2023",
                                     endDate: "June 2026",
-                                    description:
-                                        "Andy shoes are designed to keeping in mind durability as well as trends, the most stylish range of s",
+                                    description: "Andy shoes are designed to keeping in mind durability as well as trends, the most stylish range of s",
                                     currentlyWorkingHere: false,
                                     _id: "6644215d6fdffcf6c3a6d8df"
                                 },
                                 {
-                                    company:
-                                        "Cummings, Schimmel and Gusikowski",
+                                    company: "Cummings, Schimmel and Gusikowski",
                                     title: "Central Functionality Developer",
                                     startDate: "August 2023",
                                     endDate: "March 2024",
-                                    description:
-                                        "Boston most advanced compression wear technology increases muscle oxygenation, stabilizes active m",
+                                    description: "Boston most advanced compression wear technology increases muscle oxygenation, stabilizes active m",
                                     currentlyWorkingHere: false,
                                     _id: "6644215d6fdffcf6c3a6d8e0"
                                 }
@@ -427,8 +312,7 @@ export async function consumeSeedGigDirectMessages(
                                 },
                                 {
                                     country: "Saint Martin",
-                                    university:
-                                        "International Security Engineer",
+                                    university: "International Security Engineer",
                                     title: "Investor Identity Executive",
                                     major: "Identity Customer",
                                     year: "2023",
@@ -474,12 +358,9 @@ export async function consumeSeedGigDirectMessages(
                             username: "Right-wingpu",
                             email: "isobel_parisian22@yahoo.com",
                             country: "Chad",
-                            profilePicture:
-                                "https://picsum.photos/seed/xMXbadW/640/480",
-                            description:
-                                "The Apollotech B340 is an affordable wireless mouse with reliable connectivity, 12 months battery life and modern design",
-                            profilePublicId:
-                                "00bab2d6-a391-4db9-a43c-c94bd639f7a4",
+                            profilePicture: "https://picsum.photos/seed/xMXbadW/640/480",
+                            description: "The Apollotech B340 is an affordable wireless mouse with reliable connectivity, 12 months battery life and modern design",
+                            profilePublicId: "00bab2d6-a391-4db9-a43c-c94bd639f7a4",
                             oneliner: "aha flowery but portend daintily qua ew",
                             languages: [
                                 {
@@ -521,19 +402,16 @@ export async function consumeSeedGigDirectMessages(
                                     title: "Customer Operations Supervisor",
                                     startDate: "July 2024",
                                     endDate: "Present",
-                                    description:
-                                        "The Apollotech B340 is an affordable wireless mouse with reliable connectivity, 12 months battery li",
+                                    description: "The Apollotech B340 is an affordable wireless mouse with reliable connectivity, 12 months battery li",
                                     currentlyWorkingHere: true,
                                     _id: "6644215d6fdffcf6c3a6d952"
                                 },
                                 {
-                                    company:
-                                        "McDermott, Cartwright and Reynolds",
+                                    company: "McDermott, Cartwright and Reynolds",
                                     title: "Legacy Web Facilitator",
                                     startDate: "January 2021",
                                     endDate: "Present",
-                                    description:
-                                        "New range of formal shirts are designed keeping you in mind. With fits and styling that will make yo",
+                                    description: "New range of formal shirts are designed keeping you in mind. With fits and styling that will make yo",
                                     currentlyWorkingHere: true,
                                     _id: "6644215d6fdffcf6c3a6d953"
                                 },
@@ -542,8 +420,7 @@ export async function consumeSeedGigDirectMessages(
                                     title: "International Brand Engineer",
                                     startDate: "December 2023",
                                     endDate: "January 2025",
-                                    description:
-                                        "Bostons most advanced compression wear technology increases muscle oxygenation, stabilizes active m",
+                                    description: "Bostons most advanced compression wear technology increases muscle oxygenation, stabilizes active m",
                                     currentlyWorkingHere: false,
                                     _id: "6644215d6fdffcf6c3a6d954"
                                 }
@@ -559,8 +436,7 @@ export async function consumeSeedGigDirectMessages(
                                 },
                                 {
                                     country: "Philippines",
-                                    university:
-                                        "District Implementation Specialist",
+                                    university: "District Implementation Specialist",
                                     title: "Forward Infrastructure Manager",
                                     major: "Interactions Corporate",
                                     year: "2020",
@@ -614,12 +490,9 @@ export async function consumeSeedGigDirectMessages(
                             username: "Diminutivela",
                             email: "westley85@gmail.com",
                             country: "San Marino",
-                            profilePicture:
-                                "https://picsum.photos/seed/rKBHGDUI/640/480",
-                            description:
-                                "The Nagasaki Lander is the trademarked name of several series of Nagasaki sport bikes, that started with the 1984 ABC800J",
-                            profilePublicId:
-                                "f7f581d5-186b-4577-ad84-c0ddfbd32af8",
+                            profilePicture: "https://picsum.photos/seed/rKBHGDUI/640/480",
+                            description: "The Nagasaki Lander is the trademarked name of several series of Nagasaki sport bikes, that started with the 1984 ABC800J",
+                            profilePublicId: "f7f581d5-186b-4577-ad84-c0ddfbd32af8",
                             oneliner: "during lest whether confused excluding",
                             languages: [
                                 {
@@ -656,8 +529,7 @@ export async function consumeSeedGigDirectMessages(
                                     title: "Product Paradigm Associate",
                                     startDate: "December 2021",
                                     endDate: "February 2024",
-                                    description:
-                                        "Ergonomic executive chair upholstered in bonded black leather and PVC padded seat and back for all-d",
+                                    description: "Ergonomic executive chair upholstered in bonded black leather and PVC padded seat and back for all-d",
                                     currentlyWorkingHere: false,
                                     _id: "6644215d6fdffcf6c3a6d9d4"
                                 },
@@ -666,8 +538,7 @@ export async function consumeSeedGigDirectMessages(
                                     title: "Investor Implementation Director",
                                     startDate: "December 2025",
                                     endDate: "Present",
-                                    description:
-                                        "Ergonomic executive chair upholstered in bonded black leather and PVC padded seat and back for all-d",
+                                    description: "Ergonomic executive chair upholstered in bonded black leather and PVC padded seat and back for all-d",
                                     currentlyWorkingHere: true,
                                     _id: "6644215d6fdffcf6c3a6d9d5"
                                 }
@@ -729,14 +600,10 @@ export async function consumeSeedGigDirectMessages(
                             username: "Disenchanted",
                             email: "eulah_crooks@hotmail.com",
                             country: "Guinea",
-                            profilePicture:
-                                "https://picsum.photos/seed/YoJZiUS/640/480",
-                            description:
-                                "Ergonomic executive chair upholstered in bonded black leather and PVC padded seat and back for all-day comfort and support",
-                            profilePublicId:
-                                "be8d581d-6643-4dfd-9e09-8d63c171780f",
-                            oneliner:
-                                "infect growling reservation pfft whenever sip that dull",
+                            profilePicture: "https://picsum.photos/seed/YoJZiUS/640/480",
+                            description: "Ergonomic executive chair upholstered in bonded black leather and PVC padded seat and back for all-day comfort and support",
+                            profilePublicId: "be8d581d-6643-4dfd-9e09-8d63c171780f",
+                            oneliner: "infect growling reservation pfft whenever sip that dull",
                             languages: [
                                 {
                                     language: "English",
@@ -777,8 +644,7 @@ export async function consumeSeedGigDirectMessages(
                                     title: "Dynamic Configuration Analyst",
                                     startDate: "May 2022",
                                     endDate: "July 2024",
-                                    description:
-                                        "The Football Is Good For Training And Recreational Purposes",
+                                    description: "The Football Is Good For Training And Recreational Purposes",
                                     currentlyWorkingHere: false,
                                     _id: "6644215d6fdffcf6c3a6da10"
                                 },
@@ -787,8 +653,7 @@ export async function consumeSeedGigDirectMessages(
                                     title: "Investor Research Officer",
                                     startDate: "June 2024",
                                     endDate: "January 2025",
-                                    description:
-                                        "Ergonomic executive chair upholstered in bonded black leather and PVC padded seat and back for all-d",
+                                    description: "Ergonomic executive chair upholstered in bonded black leather and PVC padded seat and back for all-d",
                                     currentlyWorkingHere: false,
                                     _id: "6644215d6fdffcf6c3a6da11"
                                 },
@@ -797,8 +662,7 @@ export async function consumeSeedGigDirectMessages(
                                     title: "Forward Marketing Supervisor",
                                     startDate: "May 2021",
                                     endDate: "Present",
-                                    description:
-                                        "New ABC 13 9370, 13.3, 5th Gen CoreA5-8250U, 8GB RAM, 256GB SSD, power UHD Graphics, OS 10 Home, OS ",
+                                    description: "New ABC 13 9370, 13.3, 5th Gen CoreA5-8250U, 8GB RAM, 256GB SSD, power UHD Graphics, OS 10 Home, OS ",
                                     currentlyWorkingHere: true,
                                     _id: "6644215d6fdffcf6c3a6da12"
                                 }
@@ -814,8 +678,7 @@ export async function consumeSeedGigDirectMessages(
                                 },
                                 {
                                     country: "Moldova",
-                                    university:
-                                        "Corporate Security Representative",
+                                    university: "Corporate Security Representative",
                                     title: "Customer Identity Assistant",
                                     major: "Infrastructure Central",
                                     year: "2024",
@@ -831,8 +694,7 @@ export async function consumeSeedGigDirectMessages(
                                 },
                                 {
                                     country: "Somalia",
-                                    university:
-                                        "Customer Solutions Orchestrator",
+                                    university: "Customer Solutions Orchestrator",
                                     title: "Internal Identity Orchestrator",
                                     major: "Group Future",
                                     year: "2021",
@@ -878,14 +740,10 @@ export async function consumeSeedGigDirectMessages(
                             username: "Irritatingbo",
                             email: "paula.dubuque@gmail.com",
                             country: "Morocco",
-                            profilePicture:
-                                "https://picsum.photos/seed/sQFhVl2/640/480",
-                            description:
-                                "Bostons most advanced compression wear technology increases muscle oxygenation, stabilizes active muscles",
-                            profilePublicId:
-                                "1bad2b37-e405-4694-8397-97fd5e6dc93d",
-                            oneliner:
-                                "supposing mysteriously disburse survival indeed athwart certificate briskly when by",
+                            profilePicture: "https://picsum.photos/seed/sQFhVl2/640/480",
+                            description: "Bostons most advanced compression wear technology increases muscle oxygenation, stabilizes active muscles",
+                            profilePublicId: "1bad2b37-e405-4694-8397-97fd5e6dc93d",
+                            oneliner: "supposing mysteriously disburse survival indeed athwart certificate briskly when by",
                             languages: [
                                 {
                                     language: "English",
@@ -921,8 +779,7 @@ export async function consumeSeedGigDirectMessages(
                                     title: "Regional Tactics Director",
                                     startDate: "November 2022",
                                     endDate: "August 2025",
-                                    description:
-                                        "Ergonomic executive chair upholstered in bonded black leather and PVC padded seat and back for all-d",
+                                    description: "Ergonomic executive chair upholstered in bonded black leather and PVC padded seat and back for all-d",
                                     currentlyWorkingHere: false,
                                     _id: "6644215d6fdffcf6c3a6da41"
                                 },
@@ -931,8 +788,7 @@ export async function consumeSeedGigDirectMessages(
                                     title: "Investor Paradigm Supervisor",
                                     startDate: "February 2023",
                                     endDate: "Present",
-                                    description:
-                                        "Carbonite web goalkeeper gloves are ergonomically designed to give easy fit",
+                                    description: "Carbonite web goalkeeper gloves are ergonomically designed to give easy fit",
                                     currentlyWorkingHere: true,
                                     _id: "6644215d6fdffcf6c3a6da42"
                                 },
@@ -941,8 +797,7 @@ export async function consumeSeedGigDirectMessages(
                                     title: "National Optimization Analyst",
                                     startDate: "April 2021",
                                     endDate: "February 2025",
-                                    description:
-                                        "New range of formal shirts are designed keeping you in mind. With fits and styling that will make yo",
+                                    description: "New range of formal shirts are designed keeping you in mind. With fits and styling that will make yo",
                                     currentlyWorkingHere: false,
                                     _id: "6644215d6fdffcf6c3a6da43"
                                 }
@@ -966,8 +821,7 @@ export async function consumeSeedGigDirectMessages(
                                 },
                                 {
                                     country: "Chile",
-                                    university:
-                                        "Legacy Infrastructure Orchestrator",
+                                    university: "Legacy Infrastructure Orchestrator",
                                     title: "Product Web Associate",
                                     major: "Security Investor",
                                     year: "2023",
@@ -1008,102 +862,64 @@ export async function consumeSeedGigDirectMessages(
                             createdAt: { $date: "2024-05-15T02:43:41.708Z" }
                         }
                     ];
-                    await getRandomSellers(parseInt(count));
-                    const seed = gigServiceExchangeNamesAndRoutingKeys.seed;
-
-                    await publishDirectMessage(
-                        channel,
-                        seed.exchangeName,
-                        seed.routingKey,
-                        JSON.stringify({
-                            type: "receiveSellers",
-                            sellers,
-                            count
-                        }),
-                        "Message sent to gig service."
-                    );
+                    yield (0, seller_service_1.getRandomSellers)(parseInt(count));
+                    const seed = config_1.gigServiceExchangeNamesAndRoutingKeys.seed;
+                    yield (0, users_producer_1.publishDirectMessage)(channel, seed.exchangeName, seed.routingKey, JSON.stringify({
+                        type: "receiveSellers",
+                        sellers,
+                        count
+                    }), "Message sent to gig service.");
                 }
-
-                channel.ack(message!);
-            }
-        );
-    } catch (error) {
-        logger(
-            "queues/users.consumer.ts - consumeSeedGigDirectMessages()"
-        ).error(
-            "UsersService QueueConsumer consumeBuyerDirectMessages() method error:",
-            error
-        );
-    }
-}
-
-// TODO
-export async function consumeChatDirectMessages(channel: Channel) {
-    try {
-        if (!channel) {
-            channel = await createConnection();
+                channel.ack(message);
+            }));
         }
-
-        const {
-            checkExistingUserForConversation,
-            responseExistingUsersForConversation
-        } = chatServiceExchangeNamesAndRoutingKeys;
-        const queueName = "user-chat-queue";
-
-        await channel.assertExchange(
-            checkExistingUserForConversation.exchangeName,
-            "direct"
-        );
-
-        // if queue not exist it will create new
-        const jobberQueue = await channel.assertQueue(queueName, {
-            durable: true,
-            autoDelete: false
-        });
-
-        // create path between exchange and queue using routingKey
-        await channel.bindQueue(
-            jobberQueue.queue,
-            checkExistingUserForConversation.exchangeName,
-            checkExistingUserForConversation.routingKey
-        );
-        channel.consume(
-            jobberQueue.queue,
-            async (message: ConsumeMessage | null) => {
-                const { type } = JSON.parse(message!.content.toString());
+        catch (error) {
+            (0, config_1.logger)("queues/users.consumer.ts - consumeSeedGigDirectMessages()").error("UsersService QueueConsumer consumeBuyerDirectMessages() method error:", error);
+        }
+    });
+}
+exports.consumeSeedGigDirectMessages = consumeSeedGigDirectMessages;
+// TODO
+function consumeChatDirectMessages(channel) {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            if (!channel) {
+                channel = yield (0, connection_1.createConnection)();
+            }
+            const { checkExistingUserForConversation, responseExistingUsersForConversation } = config_1.chatServiceExchangeNamesAndRoutingKeys;
+            const queueName = "user-chat-queue";
+            yield channel.assertExchange(checkExistingUserForConversation.exchangeName, "direct");
+            // if queue not exist it will create new
+            const jobberQueue = yield channel.assertQueue(queueName, {
+                durable: true,
+                autoDelete: false
+            });
+            // create path between exchange and queue using routingKey
+            yield channel.bindQueue(jobberQueue.queue, checkExistingUserForConversation.exchangeName, checkExistingUserForConversation.routingKey);
+            channel.consume(jobberQueue.queue, (message) => __awaiter(this, void 0, void 0, function* () {
+                const { type } = JSON.parse(message.content.toString());
                 if (type === "validate-users-conversation") {
-                    const { senderUsername, receiverUsername } = JSON.parse(
-                        message!.content.toString()
-                    );
-                    const [sender, receiver] = await Promise.all([
-                        getBuyerByUsername(senderUsername),
-                        getBuyerByUsername(receiverUsername)
+                    const { senderUsername, receiverUsername } = JSON.parse(message.content.toString());
+                    const [sender, receiver] = yield Promise.all([
+                        (0, buyer_service_1.getBuyerByUsername)(senderUsername),
+                        (0, buyer_service_1.getBuyerByUsername)(receiverUsername)
                     ]);
-
                     let result = false;
                     if (sender && receiver) {
                         result = true;
                     }
-
-                    await publishDirectMessage(
-                        channel,
-                        responseExistingUsersForConversation.exchangeName,
-                        responseExistingUsersForConversation.routingKey,
-                        JSON.stringify({
-                            type: "response-users-conversation",
-                            result
-                        }),
-                        "Message sent to chat service"
-                    );
+                    yield (0, users_producer_1.publishDirectMessage)(channel, responseExistingUsersForConversation.exchangeName, responseExistingUsersForConversation.routingKey, JSON.stringify({
+                        type: "response-users-conversation",
+                        result
+                    }), "Message sent to chat service");
                 }
-
-                channel.ack(message!);
-            }
-        );
-    } catch (error) {
-        logger("queues/users.consumer.ts - consumeChatDirectMessages()").error(
-            "UsersService QueueConsumer consumeChatDirectMessages() method error:",
-            error
-        );
-    }
+                channel.ack(message);
+            }));
+        }
+        catch (error) {
+            (0, config_1.logger)("queues/users.consumer.ts - consumeChatDirectMessages()").error("UsersService QueueConsumer consumeChatDirectMessages() method error:", error);
+        }
+    });
 }
+exports.consumeChatDirectMessages = consumeChatDirectMessages;
+//# sourceMappingURL=users.consumer.js.map
