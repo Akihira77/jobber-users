@@ -80,6 +80,7 @@ async function startQueues(
     logger: (moduleName: string) => Logger
 ): Promise<UsersQueue> {
     const queue = new UsersQueue(null, logger);
+    await queue.createConnection();
     queue.consumeBuyerDirectMessages();
     queue.consumeSellerDirectMessages();
     queue.consumeReviewFanoutMessages();

@@ -12,7 +12,7 @@ import {
     ELASTIC_SEARCH_URL
 } from "./config";
 
-const initialize = async (): Promise<void> => {
+const main = async (): Promise<void> => {
     const logger = (moduleName?: string): Logger =>
         winstonLogger(
             `${ELASTIC_SEARCH_URL}`,
@@ -29,4 +29,4 @@ const initialize = async (): Promise<void> => {
     await start(app, logger);
 };
 
-initialize();
+main();
