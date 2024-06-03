@@ -1,9 +1,9 @@
 import { databaseConnection } from "@users/database";
-import express, { Express } from "express";
 import { start } from "@users/server";
 import cloudinary from "cloudinary";
 import { winstonLogger } from "@Akihira77/jobber-shared";
 import { Logger } from "winston";
+import { Hono } from "hono";
 
 import {
     CLOUD_API_KEY,
@@ -26,14 +26,15 @@ const main = async (): Promise<void> => {
             api_secret: CLOUD_API_SECRET
         });
         const db = await databaseConnection(logger);
-        const app: Express = express();
+        logger("app.ts - main()").info("UsersService MongoDB is connected.");
+        const app = new Hono();
         await start(app, logger);
 
         process.once("exit", async () => {
             await db.connection.close();
         });
     } catch (error) {
-        logger("app.ts - main()").error("Initiate app error", error);
+        logger("app.ts - main()").error(error);
         process.exit(1);
     }
 };

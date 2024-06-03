@@ -9,19 +9,17 @@ import { faker } from "@faker-js/faker";
 import { sellerSchema } from "@users/schemas/seller.schema";
 import { BuyerService } from "@users/services/buyer.service";
 import { SellerService } from "@users/services/seller.service";
-import { Request, Response } from "express";
-import { StatusCodes } from "http-status-codes";
 import { sampleSize, sample, floor, random } from "lodash";
 import { v4 as uuidv4 } from "uuid";
 
-export class SellerController {
+export class SellerHandler {
     constructor(
         private sellerService: SellerService,
         private buyerService: BuyerService
     ) {}
 
-    async createSeller(req: Request, res: Response): Promise<void> {
-        const { error } = sellerSchema.validate(req.body);
+    async createSeller(reqBody: any): Promise<ISellerDocument> {
+        const { error, value } = sellerSchema.validate(reqBody);
 
         if (error?.details) {
             throw new BadRequestError(
@@ -31,9 +29,9 @@ export class SellerController {
         }
 
         const existedSeller =
-            (await this.sellerService.getSellerByEmail(req.body.email ?? "")) ??
+            (await this.sellerService.getSellerByEmail(value.email ?? "")) ??
             (await this.sellerService.getSellerByUsername(
-                req.body.username ?? ""
+                value.username ?? ""
             ));
 
         if (existedSeller) {
@@ -44,61 +42,52 @@ export class SellerController {
         }
 
         const sellerData: ISellerDocument = {
-            fullName: req.body.fullName,
-            username: req.body.username,
-            email: req.body.email,
-            profilePicture: req.body.profilePicture,
-            description: req.body.description,
-            country: req.body.country,
-            skills: req.body.skills,
-            languages: req.body.languages,
-            profilePublicId: req.body.profilePublicId,
-            oneliner: req.body.oneliner,
-            responseTime: req.body.responseTime,
-            experience: req.body.experience,
-            education: req.body.education,
-            socialLinks: req.body.socialLinks,
-            certificates: req.body.certificates
+            fullName: value.fullName,
+            username: value.username,
+            email: value.email,
+            profilePicture: value.profilePicture,
+            description: value.description,
+            country: value.country,
+            skills: value.skills,
+            languages: value.languages,
+            profilePublicId: value.profilePublicId,
+            oneliner: value.oneliner,
+            responseTime: value.responseTime,
+            experience: value.experience,
+            education: value.education,
+            socialLinks: value.socialLinks,
+            certificates: value.certificates
         };
         const createdSeller = await this.sellerService.createSeller(sellerData);
 
-        res.status(StatusCodes.CREATED).json({
-            message: "Seller created successfully.",
-            seller: createdSeller
-        });
+        return createdSeller;
     }
 
-    async getSellerById(req: Request, res: Response): Promise<void> {
-        const seller = await this.sellerService.getSellerById(
-            req.params.sellerId
-        );
+    async getSellerById(sellerId: string): Promise<ISellerDocument | null> {
+        const seller = await this.sellerService.getSellerById(sellerId);
 
-        res.status(StatusCodes.OK).json({ message: "Seller profile", seller });
+        return seller;
     }
 
-    async getSellerByUsername(req: Request, res: Response): Promise<void> {
-        const seller = await this.sellerService.getSellerByUsername(
-            req.params.username
-        );
+    async getSellerByUsername(
+        username: string
+    ): Promise<ISellerDocument | null> {
+        const seller = await this.sellerService.getSellerByUsername(username);
 
-        res.status(StatusCodes.OK).json({ message: "Seller profile", seller });
+        return seller;
     }
 
-    async getRandomSellers(req: Request, res: Response): Promise<void> {
-        const sellers = await this.sellerService.getRandomSellers(
-            parseInt(req.params.count)
-        );
+    async getRandomSellers(count: number): Promise<ISellerDocument[]> {
+        const sellers = await this.sellerService.getRandomSellers(count);
 
-        res.status(StatusCodes.OK).json({
-            message: "Random sellers profile",
-            sellers
-        });
+        return sellers;
     }
 
-    async updateSeller(req: Request, res: Response): Promise<void> {
-        const existedSeller = await this.sellerService.getSellerById(
-            req.params.sellerId
-        );
+    async updateSeller(
+        sellerId: string,
+        reqBody: any
+    ): Promise<ISellerDocument | null> {
+        const existedSeller = await this.sellerService.getSellerById(sellerId);
         if (!existedSeller) {
             throw new BadRequestError(
                 "Seller is not found",
@@ -106,7 +95,7 @@ export class SellerController {
             );
         }
 
-        const { error } = sellerSchema.validate(req.body);
+        const { error, value } = sellerSchema.validate(reqBody);
 
         if (error?.details) {
             throw new BadRequestError(
@@ -116,36 +105,32 @@ export class SellerController {
         }
 
         const sellerData: ISellerDocument = {
-            fullName: req.body.fullName,
-            profilePicture: req.body.profilePicture,
-            description: req.body.description,
-            country: req.body.country,
-            skills: req.body.skills,
-            languages: req.body.languages,
-            profilePublicId: req.body.profilePublicId,
-            oneliner: req.body.oneliner,
-            responseTime: req.body.responseTime,
-            experience: req.body.experience,
-            education: req.body.education,
-            socialLinks: req.body.socialLinks,
-            certificates: req.body.certificates
+            fullName: value.fullName,
+            profilePicture: value.profilePicture,
+            description: value.description,
+            country: value.country,
+            skills: value.skills,
+            languages: value.languages,
+            profilePublicId: value.profilePublicId,
+            oneliner: value.oneliner,
+            responseTime: value.responseTime,
+            experience: value.experience,
+            education: value.education,
+            socialLinks: value.socialLinks,
+            certificates: value.certificates
         };
 
         const updatedSeller = await this.sellerService.updateSeller(
-            req.params.sellerId,
+            sellerId,
             sellerData
         );
 
-        res.status(StatusCodes.OK).json({
-            message: "Seller updated successfully.",
-            seller: updatedSeller
-        });
+        return updatedSeller;
     }
 
-    async populateSeller(req: Request, res: Response): Promise<void> {
-        const { count } = req.params;
+    async populateSeller(count: number): Promise<void> {
         const buyers: IBuyerDocument[] =
-            await this.buyerService.getRandomBuyers(parseInt(count));
+            await this.buyerService.getRandomBuyers(count);
 
         for (let i = 0; i < buyers.length; i++) {
             const buyer: IBuyerDocument = buyers[i];
@@ -225,11 +210,6 @@ export class SellerController {
 
             this.sellerService.createSeller(sellerData);
         }
-
-        res.status(StatusCodes.CREATED).json({
-            message: "Sellers created successfully",
-            total: count
-        });
     }
 
     randomExperiences(count: number): IExperience[] {
