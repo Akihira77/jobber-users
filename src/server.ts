@@ -1,8 +1,7 @@
 import jwt from "jsonwebtoken";
 import {
     CustomError,
-    IAuthPayload,
-    NotAuthorizedError
+    IAuthPayload
 } from "@Akihira77/jobber-shared";
 import { API_GATEWAY_URL, JWT_TOKEN, PORT } from "@users/config";
 import { appRoutes } from "@users/routes";
@@ -57,23 +56,13 @@ function securityMiddleware(app: Hono): void {
     );
 
     app.use(async (c: Context, next: Next) => {
-        if (c.req.path == "/users-health") {
-            await next();
-            return;
-        }
-
         const authorization = c.req.header("authorization");
-        if (!authorization || authorization === "") {
-            throw new NotAuthorizedError(
-                "unauthenticated request",
-                "Users Service"
-            );
+        if (authorization && authorization !== "") {
+            const token = authorization.split(" ")[1];
+            const payload = jwt.verify(token, JWT_TOKEN!) as IAuthPayload;
+            c.set("currentUser", payload);
         }
 
-        const token = authorization.split(" ")[1];
-        const payload = jwt.verify(token, JWT_TOKEN!) as IAuthPayload;
-
-        c.set("currentUser", payload);
         await next();
     });
 }
