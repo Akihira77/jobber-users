@@ -1,4 +1,4 @@
-import Joi from "joi";
+import Joi from "joi"
 
 export const authBuyerSchema = Joi.object({
     username: Joi.string().required(),
@@ -6,4 +6,4 @@ export const authBuyerSchema = Joi.object({
     profilePicture: Joi.string().required(),
     country: Joi.string().required(),
     createdAt: Joi.string().required()
-});
+})

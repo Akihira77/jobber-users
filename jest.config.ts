@@ -1,9 +1,10 @@
-import { Config } from "@jest/types";
+import { Config } from "@jest/types"
 
 const config: Config.InitialOptions = {
     preset: "ts-jest",
     testEnvironment: "node",
     verbose: true,
+    // silent: true,
     coverageDirectory: "coverage",
     collectCoverage: true,
     testPathIgnorePatterns: ["/node_modules"],
@@ -26,6 +27,6 @@ const config: Config.InitialOptions = {
     moduleNameMapper: {
         "@users/(.*)": ["<rootDir>/src/$1"]
     }
-};
+}
 
-export default config;
+export default config

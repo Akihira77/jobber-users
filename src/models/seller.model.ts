@@ -1,5 +1,5 @@
-import { ISellerDocument } from "@Akihira77/jobber-shared";
-import { Model, Schema, model } from "mongoose";
+import { ISellerDocument } from "@Akihira77/jobber-shared"
+import { Model, Schema, model } from "mongoose"
 
 const sellerSchema: Schema = new Schema(
     {
@@ -144,10 +144,10 @@ const sellerSchema: Schema = new Schema(
     {
         versionKey: false
     }
-);
+)
 
 export const SellerModel: Model<ISellerDocument> = model<ISellerDocument>(
     "Seller",
     sellerSchema,
     "Seller"
-);
+)

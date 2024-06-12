@@ -658,4 +658,4 @@ export const sellers = [
         totalGigs: 0,
         createdAt: { $date: "2024-05-15T02:43:41.708Z" }
     }
-];
+]

@@ -1,5 +1,5 @@
-import { IBuyerDocument } from "@Akihira77/jobber-shared";
-import mongoose, { Model, Schema, model } from "mongoose";
+import { IBuyerDocument } from "@Akihira77/jobber-shared"
+import mongoose, { Model, Schema, model } from "mongoose"
 
 const buyerSchema: Schema = new Schema(
     {
@@ -38,10 +38,10 @@ const buyerSchema: Schema = new Schema(
     {
         versionKey: false
     }
-);
+)
 
 export const BuyerModel: Model<IBuyerDocument> = model<IBuyerDocument>(
     "Buyer",
     buyerSchema,
     "Buyer"
-);
+)

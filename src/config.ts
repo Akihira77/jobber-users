@@ -1,9 +1,9 @@
-import dotenv from "dotenv";
+import dotenv from "dotenv"
 
 if (process.env.NODE_ENV !== "production") {
-    dotenv.config({ path: "./.env" });
+    dotenv.config({ path: "./.env" })
 } else {
-    dotenv.config();
+    dotenv.config()
 }
 
 export const {
@@ -22,7 +22,7 @@ export const {
     ELASTIC_APM_SERVER_URL,
     ELASTIC_APM_SERVICE_NAME,
     ENABLE_APM
-} = process.env;
+} = process.env
 
 // if (NODE_ENV === "production" && ENABLE_APM == "1") {
 //     require("elastic-apm-node").start({
@@ -46,7 +46,7 @@ export const notificationServiceExchangeNamesAndRoutingKeys = {
         exchangeName: "jobber-order-notification",
         routingKey: "order-email"
     }
-};
+}
 
 export const buyerServiceExchangeNamesAndRoutingKeys = {
     buyer: {
@@ -57,13 +57,13 @@ export const buyerServiceExchangeNamesAndRoutingKeys = {
         exchangeName: "jobber-seller-update",
         routingKey: "user-seller"
     }
-};
+}
 
 export const reviewServiceExchangeNamesAndRoutingKeys = {
     review: {
         exchangeName: "jobber-review"
     }
-};
+}
 
 export const gigServiceExchangeNamesAndRoutingKeys = {
     updateGig: {
@@ -78,7 +78,7 @@ export const gigServiceExchangeNamesAndRoutingKeys = {
         exchangeName: "jobber-seed-gig",
         routingKey: "receive-sellers"
     }
-};
+}
 
 export const chatServiceExchangeNamesAndRoutingKeys = {
     checkExistingUserForConversation: {
@@ -89,4 +89,4 @@ export const chatServiceExchangeNamesAndRoutingKeys = {
         exchangeName: "jobber-response-existing-user",
         routingKey: "response-user-for-conversation"
     }
-};
+}

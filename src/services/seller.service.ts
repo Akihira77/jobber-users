@@ -1,13 +1,16 @@
 import {
+    CustomError,
     IOrderMessage,
     IRatingTypes,
     IReviewMessageDetails,
-    ISellerDocument
-} from "@Akihira77/jobber-shared";
-import { SellerModel } from "@users/models/seller.model";
-import { Logger } from "winston";
+    ISellerDocument,
+    NotFoundError
+} from "@Akihira77/jobber-shared"
+import { SellerModel } from "@users/models/seller.model"
+import { Logger } from "winston"
 
-import { BuyerService } from "./buyer.service";
+import { BuyerService } from "./buyer.service"
+import { isValidObjectId } from "mongoose"
 
 export class SellerService {
     constructor(
@@ -17,13 +20,24 @@ export class SellerService {
 
     async getSellerById(id: string): Promise<ISellerDocument | null> {
         try {
-            return await SellerModel.findById(id).lean().exec();
+            if (!isValidObjectId(id)) {
+                throw new NotFoundError(
+                    "Seller account did not found.",
+                    "services/seller.service.ts - getSellerById()"
+                )
+            }
+
+            return await SellerModel.findById(id).lean().exec()
         } catch (error) {
             this.logger("services/seller.service.ts - getSellerById()").error(
                 "UsersService getSellerById() method error",
                 error
-            );
-            throw new Error("Unexpected error occured. Please try again.");
+            )
+            if (error instanceof CustomError) {
+                throw error
+            }
+
+            throw new Error("Unexpected error occured. Please try again.")
         }
     }
 
@@ -35,12 +49,12 @@ export class SellerService {
                 username
             })
                 .lean()
-                .exec();
+                .exec()
         } catch (error) {
             this.logger(
                 "services/seller.service.ts - getSellerByUsername()"
-            ).error("UsersService getSellerByUsername() method error", error);
-            throw new Error("Unexpected error occured. Please try again.");
+            ).error("UsersService getSellerByUsername() method error", error)
+            throw new Error("Unexpected error occured. Please try again.")
         }
     }
 
@@ -50,12 +64,12 @@ export class SellerService {
                 email
             })
                 .lean()
-                .exec();
+                .exec()
         } catch (error) {
             this.logger(
                 "services/seller.service.ts - getSellerByEmail()"
-            ).error("UsersService getSellerByEmail() method error", error);
-            throw new Error("Unexpected error occured. Please try again.");
+            ).error("UsersService getSellerByEmail() method error", error)
+            throw new Error("Unexpected error occured. Please try again.")
         }
     }
 
@@ -67,28 +81,28 @@ export class SellerService {
                         size
                     }
                 }
-            ]);
+            ])
         } catch (error) {
             this.logger(
                 "services/seller.service.ts - getRandomSellers()"
-            ).error("UsersService getRandomSellers() method error", error);
-            throw new Error("Unexpected error occured. Please try again.");
+            ).error("UsersService getRandomSellers() method error", error)
+            throw new Error("Unexpected error occured. Please try again.")
         }
     }
 
     async createSeller(sellerData: ISellerDocument): Promise<ISellerDocument> {
         try {
-            const result = await SellerModel.create(sellerData);
+            const result = await SellerModel.create(sellerData)
 
-            await this.buyerService.updateBuyerIsSellerProp(result.email!);
+            await this.buyerService.updateBuyerIsSellerProp(result.email!)
 
-            return result;
+            return result
         } catch (error) {
             this.logger("services/seller.service.ts - createSeller()").error(
                 "UsersService createSeller() method error",
                 error
-            );
-            throw new Error("Unexpected error occured. Please try again.");
+            )
+            throw new Error("Unexpected error occured. Please try again.")
         }
     }
 
@@ -101,12 +115,12 @@ export class SellerService {
                         totalGigs: count
                     }
                 }
-            ).exec();
+            ).exec()
         } catch (error) {
             this.logger(
                 "services/seller.service.ts - updateTotalGigCount()"
-            ).error("UsersService updateTotalGigCount() method error", error);
-            throw new Error("Unexpected error occured. Please try again.");
+            ).error("UsersService updateTotalGigCount() method error", error)
+            throw new Error("Unexpected error occured. Please try again.")
         }
     }
 
@@ -122,15 +136,15 @@ export class SellerService {
                         ongoingJobs
                     }
                 }
-            ).exec();
+            ).exec()
         } catch (error) {
             this.logger(
                 "services/seller.service.ts - updateSellerOngoingJobsProp()"
             ).error(
                 "UsersService updateSellerOngoingJobsProp() method error",
                 error
-            );
-            throw new Error("Unexpected error occured. Please try again.");
+            )
+            throw new Error("Unexpected error occured. Please try again.")
         }
     }
 
@@ -144,15 +158,15 @@ export class SellerService {
                         cancelledJobs: 1
                     }
                 }
-            ).exec();
+            ).exec()
         } catch (error) {
             this.logger(
                 "services/seller.service.ts - updateSellerCancelJobsProp()"
             ).error(
                 "UsersService updateSellerCancelJobsProp() method error",
                 error
-            );
-            throw new Error("Unexpected error occured. Please try again.");
+            )
+            throw new Error("Unexpected error occured. Please try again.")
         }
     }
 
@@ -164,7 +178,7 @@ export class SellerService {
                 totalEarnings,
                 recentDelivery,
                 completedJobs
-            } = data;
+            } = data
 
             await SellerModel.updateOne(
                 { _id: sellerId },
@@ -178,15 +192,15 @@ export class SellerService {
                         recentDelivery: new Date(recentDelivery!)
                     }
                 }
-            ).exec();
+            ).exec()
         } catch (error) {
             this.logger(
                 "services/seller.service.ts - updateSellerCompletedJobs()"
             ).error(
                 "UsersService updateSellerCompletedJobs() method error",
                 error
-            );
-            throw new Error("Unexpected error occured. Please try again.");
+            )
+            throw new Error("Unexpected error occured. Please try again.")
         }
     }
 
@@ -198,8 +212,8 @@ export class SellerService {
                 "3": "three",
                 "4": "four",
                 "5": "five"
-            };
-            const ratingKey: string = ratingTypes[`${data.rating}`];
+            }
+            const ratingKey: string = ratingTypes[`${data.rating}`]
 
             await SellerModel.updateOne(
                 { _id: data.sellerId },
@@ -211,12 +225,12 @@ export class SellerService {
                         [`ratingCategories.${ratingKey}.count`]: 1
                     }
                 }
-            ).exec();
+            ).exec()
         } catch (error) {
             this.logger(
                 "services/seller.service.ts - updateSellerReview()"
-            ).error("UsersService updateSellerReview() method error", error);
-            throw new Error("Unexpected error occured. Please try again.");
+            ).error("UsersService updateSellerReview() method error", error)
+            throw new Error("Unexpected error occured. Please try again.")
         }
     }
 
@@ -231,13 +245,13 @@ export class SellerService {
                 { new: true }
             )
                 .lean()
-                .exec();
+                .exec()
         } catch (error) {
             this.logger("services/seller.service.ts - updateSeller()").error(
                 "UsersService updateSeller() method error",
                 error
-            );
-            throw new Error("Unexpected error occured. Please try again.");
+            )
+            throw new Error("Unexpected error occured. Please try again.")
         }
     }
 }

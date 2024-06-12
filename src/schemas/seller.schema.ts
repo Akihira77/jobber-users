@@ -1,4 +1,4 @@
-import Joi, { ObjectSchema } from "joi";
+import Joi, { ObjectSchema } from "joi"
 
 export const sellerSchema: ObjectSchema = Joi.object().keys({
     _id: Joi.string().optional(),
@@ -10,7 +10,7 @@ export const sellerSchema: ObjectSchema = Joi.object().keys({
     }),
     username: Joi.string().required(),
     email: Joi.string().required().email(),
-    profilePublicId: Joi.string().optional().allow(null, ""),
+    profilePublicId: Joi.string().required().allow(null, ""),
     profilePicture: Joi.string().required().messages({
         "string.base": "Please add a profile picture",
         "string.empty": "Profile picture is required",
@@ -126,4 +126,4 @@ export const sellerSchema: ObjectSchema = Joi.object().keys({
     totalEarnings: Joi.number().optional(),
     totalGigs: Joi.number().optional(),
     createdAt: Joi.string().optional()
-});
+})
