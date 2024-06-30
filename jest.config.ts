@@ -4,7 +4,7 @@ const config: Config.InitialOptions = {
     preset: "ts-jest",
     testEnvironment: "node",
     verbose: true,
-    // silent: true,
+    silent: true,
     coverageDirectory: "coverage",
     collectCoverage: true,
     testPathIgnorePatterns: ["/node_modules"],

@@ -4,11 +4,14 @@ import { databaseConnection } from "../../database"
 
 let app: Hono
 let db: any
+let token: string = ""
 describe("Users Service Integration Testing", () => {
     beforeAll(async () => {
         db = await databaseConnection()
         app = new Hono()
         app = await setupHono(app)
+        token =
+            "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTE2LCJlbWFpbCI6ImthdGx5bi5zbWl0aEBnbWFpbC5jb20iLCJ1c2VybmFtZSI6IlByb3BlcmFlcm9wbCIsImlhdCI6MTcxODIyMzczNSwiZXhwIjoxNzE4MzEwMTM1LCJpc3MiOiJKb2JiZXIgQXV0aCJ9.gzLuwKXGAtI2MgbmPABYL8Do7EHoCS5X9v4mAqZq-SvhyZn1-VmITXiWKMTPqSPqKImoOOTjnkUgbrkDEZiBDg"
     })
 
     afterAll(() => {
@@ -20,14 +23,14 @@ describe("Users Service Integration Testing", () => {
             const res = await app.request("/buyer/email", {
                 method: "GET",
                 headers: new Headers({
-                    Authorization:
-                        "Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTE1LCJlbWFpbCI6ImxpbGE2OUB5YWhvby5jb20iLCJ1c2VybmFtZSI6IlBhaW5mdWxwaWxsbyIsImlhdCI6MTcxODA3ODAzMiwiZXhwIjoxNzE4MTY0NDMyLCJpc3MiOiJKb2JiZXIgQXV0aCJ9.j8NhLPEqFuSqyariclu4zxZRQvOr4MAUHXvkOUMIVvcBfnlU_EOoXQnfdkZM8MbTG40SPCTgQ_mUOBl_3kbPmw"
+                    Authorization: `Bearer ${token}`
                 })
             })
 
             expect(res.status).toBe(200)
             const resBody = await res.json()
             expect(resBody).not.toBeNull()
+            expect(Object.keys(resBody)).toEqual(["message", "buyer"])
             expect(resBody.message).not.toBeNull()
             expect(resBody.buyer).not.toBeNull()
         })
@@ -39,6 +42,12 @@ describe("Users Service Integration Testing", () => {
 
             expect(res.status).toBe(401)
             const resBody = await res.json()
+            expect(Object.keys(resBody)).toEqual([
+                "message",
+                "statusCode",
+                "status",
+                "comingFrom"
+            ])
             expect(resBody.message).not.toBeNull()
         })
     })
@@ -48,14 +57,14 @@ describe("Users Service Integration Testing", () => {
             const res = await app.request("/buyer/username", {
                 method: "GET",
                 headers: new Headers({
-                    Authorization:
-                        "Bearer eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTE1LCJlbWFpbCI6ImxpbGE2OUB5YWhvby5jb20iLCJ1c2VybmFtZSI6IlBhaW5mdWxwaWxsbyIsImlhdCI6MTcxODA3ODAzMiwiZXhwIjoxNzE4MTY0NDMyLCJpc3MiOiJKb2JiZXIgQXV0aCJ9.j8NhLPEqFuSqyariclu4zxZRQvOr4MAUHXvkOUMIVvcBfnlU_EOoXQnfdkZM8MbTG40SPCTgQ_mUOBl_3kbPmw"
+                    Authorization: `Bearer ${token}`
                 })
             })
 
             expect(res.status).toBe(200)
             const resBody = await res.json()
             expect(resBody).not.toBeNull()
+            expect(Object.keys(resBody)).toEqual(["message", "buyer"])
             expect(resBody.message).not.toBeNull()
             expect(resBody.buyer).not.toBeNull()
         })
@@ -67,6 +76,12 @@ describe("Users Service Integration Testing", () => {
 
             expect(res.status).toBe(401)
             const resBody = await res.json()
+            expect(Object.keys(resBody)).toEqual([
+                "message",
+                "statusCode",
+                "status",
+                "comingFrom"
+            ])
             expect(resBody.message).not.toBeNull()
         })
     })
@@ -75,12 +90,16 @@ describe("Users Service Integration Testing", () => {
         it("Harus mengembalikan status_code 200 dan data pembeli yang ada pada database", async () => {
             const username = "Painfulpillo"
             const res = await app.request(`/buyer/${username}`, {
-                method: "GET"
+                method: "GET",
+                headers: new Headers({
+                    Authorization: `Bearer ${token}`
+                })
             })
 
             expect(res.status).toBe(200)
             const resBody = await res.json()
             expect(resBody).not.toBeNull()
+            expect(Object.keys(resBody)).toEqual(["message", "buyer"])
             expect(resBody.message).not.toBeNull()
             expect(resBody.buyer).not.toBeNull()
         })
@@ -88,12 +107,15 @@ describe("Users Service Integration Testing", () => {
         it("Harus mengembalikan status_code 404 bahwa data pembeli tidak ditemukan pada database", async () => {
             const username = "not-found-username"
             const res = await app.request(`/buyer/${username}`, {
-                method: "GET"
+                method: "GET",
+                headers: new Headers({ Authorization: `Bearer ${token}` })
             })
 
             expect(res.status).toBe(404)
             const resBody = await res.json()
+            expect(Object.keys(resBody)).toEqual(["message", "buyer"])
             expect(resBody.message).not.toBeNull()
+            expect(resBody.buyer).toEqual({})
         })
     })
 
@@ -101,25 +123,35 @@ describe("Users Service Integration Testing", () => {
         it("Harus mengembalikan status_code 200 dan data penjual yang ada pada database", async () => {
             const sellerId = "6644215d6fdffcf6c3a6d94e"
             const res = await app.request(`/seller/id/${sellerId}`, {
-                method: "GET"
+                method: "GET",
+                headers: new Headers({ Authorization: `Bearer ${token}` })
             })
 
             expect(res.status).toBe(200)
             const resBody = await res.json()
             expect(resBody).not.toBeNull()
+            expect(Object.keys(resBody)).toEqual(["message", "seller"])
             expect(resBody.message).not.toBeNull()
             expect(resBody.seller).not.toBeNull()
         })
 
         it("Harus mengembalikan status_code 404 bahwa data penjual tidak ditemukan pada database", async () => {
-            const sellerId = "notfoundid"
+            const sellerId = "notfoundsellerid"
             const res = await app.request(`/seller/id/${sellerId}`, {
-                method: "GET"
+                method: "GET",
+                headers: new Headers({ Authorization: `Bearer ${token}` })
             })
 
             expect(res.status).toBe(404)
             const resBody = await res.json()
+            expect(Object.keys(resBody)).toEqual([
+                "message",
+                "statusCode",
+                "status",
+                "comingFrom"
+            ])
             expect(resBody.message).not.toBeNull()
+            expect(resBody.message).toBe("Seller account did not found.")
         })
     })
 
@@ -127,25 +159,30 @@ describe("Users Service Integration Testing", () => {
         it("Harus mengembalikan status_code 200 dan data penjual yang ada pada database", async () => {
             const username = "Irritatingbo"
             const res = await app.request(`/seller/username/${username}`, {
-                method: "GET"
+                method: "GET",
+                headers: new Headers({ Authorization: `Bearer ${token}` })
             })
 
             expect(res.status).toBe(200)
             const resBody = await res.json()
             expect(resBody).not.toBeNull()
+            expect(Object.keys(resBody)).toEqual(["message", "seller"])
             expect(resBody.message).not.toBeNull()
             expect(resBody.seller).not.toBeNull()
         })
 
         it("Harus mengembalikan status_code 404 bahwa data penjual tidak ditemukan pada database", async () => {
-            const username = "notfoundusername"
+            const username = "notfoundsellerusername"
             const res = await app.request(`/seller/username/${username}`, {
-                method: "GET"
+                method: "GET",
+                headers: new Headers({ Authorization: `Bearer ${token}` })
             })
 
             expect(res.status).toBe(404)
             const resBody = await res.json()
+            expect(Object.keys(resBody)).toEqual(["message", "seller"])
             expect(resBody.message).not.toBeNull()
+            expect(resBody.seller).toEqual({})
         })
     })
 
@@ -153,12 +190,16 @@ describe("Users Service Integration Testing", () => {
         it("Harus mengembalikan status_code 200 dan 5 data penjual dari database", async () => {
             const count = 5
             const res = await app.request(`/seller/random/${count}`, {
-                method: "GET"
+                method: "GET",
+                headers: new Headers({
+                    Authorization: `Bearer ${token}`
+                })
             })
 
             expect(res.status).toBe(200)
             const resBody = await res.json()
             expect(resBody).not.toBeNull()
+            expect(Object.keys(resBody)).toEqual(["message", "sellers"])
             expect(resBody.message).not.toBeNull()
             expect(resBody.sellers).not.toBeNull()
             expect(resBody.sellers.length).toBe(5)
@@ -167,12 +208,16 @@ describe("Users Service Integration Testing", () => {
         it("Harus mengembalikan status_code 200 dan 10 data penjual dari database", async () => {
             const count = 10
             const res = await app.request(`/seller/random/${count}`, {
-                method: "GET"
+                method: "GET",
+                headers: new Headers({
+                    Authorization: `Bearer ${token}`
+                })
             })
 
             expect(res.status).toBe(200)
             const resBody = await res.json()
             expect(resBody.message).not.toBeNull()
+            expect(Object.keys(resBody)).toEqual(["message", "sellers"])
             expect(resBody.sellers).not.toBeNull()
             expect(resBody.sellers.length).toBe(10)
         })
@@ -185,12 +230,21 @@ describe("Users Service Integration Testing", () => {
             const res = await app.request("/seller/create", {
                 method: "POST",
                 body: JSON.stringify(reqBody),
-                headers: new Headers({ "Content-Type": "application/json" })
+                headers: new Headers({
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                })
             })
 
             const resBody = await res.json()
             expect(res.status).toBe(400)
             expect(resBody).not.toBeNull()
+            expect(Object.keys(resBody)).toEqual([
+                "message",
+                "statusCode",
+                "status",
+                "comingFrom"
+            ])
             expect(resBody.message).not.toBeNull()
             expect(resBody.message).toBe("Fullname is required")
         })
@@ -217,12 +271,21 @@ describe("Users Service Integration Testing", () => {
             const res = await app.request("/seller/create", {
                 method: "POST",
                 body: JSON.stringify(reqBody),
-                headers: new Headers({ "Content-Type": "application/json" })
+                headers: new Headers({
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                })
             })
 
             const resBody = await res.json()
             expect(res.status).toBe(400)
             expect(resBody).not.toBeNull()
+            expect(Object.keys(resBody)).toEqual([
+                "message",
+                "statusCode",
+                "status",
+                "comingFrom"
+            ])
             expect(resBody.message).not.toBeNull()
             expect(resBody.message).toBe("Fullname is required")
         })
@@ -234,13 +297,22 @@ describe("Users Service Integration Testing", () => {
             const sellerId = "6644215d6fdffcf6c3a6d94e"
             const res = await app.request(`/seller/$${sellerId}`, {
                 method: "PUT",
-                headers: new Headers({ "Content-Type": "application/json" }),
+                headers: new Headers({
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                }),
                 body: JSON.stringify(reqBody)
             })
 
             const resBody = await res.json()
             expect(res.status).toBe(404)
             expect(resBody).not.toBeNull()
+            expect(Object.keys(resBody)).toEqual([
+                "message",
+                "statusCode",
+                "status",
+                "comingFrom"
+            ])
             expect(resBody.message).not.toBeNull()
             expect(resBody.message).toBe("Seller account did not found.")
         })
@@ -255,7 +327,7 @@ describe("Users Service Integration Testing", () => {
                 profilePicture: "",
                 description: "",
                 country: "",
-                oneline: "",
+                oneliner: "",
                 skills: [],
                 languages: [],
                 responseTime: "",
@@ -268,12 +340,21 @@ describe("Users Service Integration Testing", () => {
             const res = await app.request(`/seller/${sellerId}`, {
                 method: "PUT",
                 body: JSON.stringify(reqBody),
-                headers: new Headers({ "Content-Type": "application/json" })
+                headers: new Headers({
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                })
             })
 
             const resBody = await res.json()
             expect(res.status).toBe(400)
             expect(resBody).not.toBeNull()
+            expect(Object.keys(resBody)).toEqual([
+                "message",
+                "statusCode",
+                "status",
+                "comingFrom"
+            ])
             expect(resBody.message).not.toBeNull()
             expect(resBody.message).toBe("Fullname is required")
         })

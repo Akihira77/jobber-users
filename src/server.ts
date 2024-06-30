@@ -24,7 +24,7 @@ import { HTTPException } from "hono/http-exception"
 import { StatusCodes } from "http-status-codes"
 import { StatusCode } from "hono/utils/http-status"
 import { serve } from "@hono/node-server"
-
+import { logger } from "hono/logger"
 import { ElasticSearchClient } from "./elasticsearch"
 import { UsersQueue } from "./queues/users.queue"
 
@@ -84,6 +84,7 @@ function securityMiddleware(app: Hono): void {
 }
 
 function standardMiddleware(app: Hono): void {
+    app.use(logger())
     app.use(compress())
     app.use(
         bodyLimit({
@@ -157,7 +158,6 @@ function usersErrorHandler(app: Hono): void {
             return err.getResponse()
         }
 
-        console.log(err)
         return c.text(
             "Unexpected error occured. Please try again",
             StatusCodes.INTERNAL_SERVER_ERROR

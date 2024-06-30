@@ -9,10 +9,10 @@ import { BuyerHandler } from "./handler/buyer.handler"
 import { SellerHandler } from "./handler/seller.handler"
 import { GATEWAY_JWT_TOKEN } from "./config"
 
-const BUYER_BASE_PATH = "/api/v1/buyer"
-// const BUYER_BASE_PATH = "/buyer"
-const SELLER_BASE_PATH = "/api/v1/seller"
-// const SELLER_BASE_PATH = "/seller"
+// const BUYER_BASE_PATH = "/api/v1/buyer"
+const BUYER_BASE_PATH = "/buyer"
+// const SELLER_BASE_PATH = "/api/v1/seller"
+const SELLER_BASE_PATH = "/seller"
 
 export function appRoutes(
     app: Hono,
@@ -32,13 +32,17 @@ export function appRoutes(
     const buyerAPI = app.basePath(BUYER_BASE_PATH)
     const sellerAPI = app.basePath(SELLER_BASE_PATH)
 
-    buyerAPI.use(verifyGatewayRequest, authOnly)
-    sellerAPI.use(verifyGatewayRequest, authOnly)
+    // buyerAPI.use(verifyGatewayRequest, authOnly)
+    // sellerAPI.use(verifyGatewayRequest, authOnly)
+
+    buyerAPI.use(authOnly)
+    sellerAPI.use(authOnly)
 
     buyerRoute(buyerAPI, buyerHndlr)
     sellerRoute(sellerAPI, sellerHndlr)
-    // buyerAPI.use(verifyGatewayRequest, authOnly)
-    // sellerAPI.use(verifyGatewayRequest, authOnly)
+
+    buyerAPI.use(verifyGatewayRequest, authOnly)
+    sellerAPI.use(verifyGatewayRequest, authOnly)
 }
 
 function buyerRoute(
@@ -49,7 +53,7 @@ function buyerRoute(
     >,
     buyerHndlr: BuyerHandler
 ): void {
-    api.get("/email", authOnly, async (c: Context) => {
+    api.get("/email", async (c: Context) => {
         const currUser = c.get("currentUser")
         const buyer =
             await buyerHndlr.getBuyerByEmail.bind(buyerHndlr)(currUser)
@@ -60,7 +64,7 @@ function buyerRoute(
         )
     })
 
-    api.get("/username", authOnly, async (c: Context) => {
+    api.get("/username", async (c: Context) => {
         const currUser = c.get("currentUser")
         const buyer =
             await buyerHndlr.getCurrentBuyer.bind(buyerHndlr)(currUser)
@@ -77,7 +81,7 @@ function buyerRoute(
             await buyerHndlr.getBuyerByUsername.bind(buyerHndlr)(username)
 
         return c.json(
-            { message: "Buyer profile", buyer },
+            { message: "Buyer profile", buyer: buyer ?? {} },
             buyer ? StatusCodes.OK : StatusCodes.NOT_FOUND
         )
     })
@@ -97,7 +101,7 @@ function sellerRoute(
             await sellerHndlr.getSellerById.bind(sellerHndlr)(sellerId)
 
         return c.json(
-            { message: "Seller profile", seller },
+            { message: "Seller profile", seller: seller ?? {} },
             seller ? StatusCodes.OK : StatusCodes.NOT_FOUND
         )
     })
@@ -108,7 +112,7 @@ function sellerRoute(
             await sellerHndlr.getSellerByUsername.bind(sellerHndlr)(username)
 
         return c.json(
-            { message: "Seller profile", seller },
+            { message: "Seller profile", seller: seller ?? {} },
             seller ? StatusCodes.OK : StatusCodes.NOT_FOUND
         )
     })
@@ -153,7 +157,7 @@ function sellerRoute(
         return c.json(
             {
                 message: "Seller updated successfully.",
-                seller
+                seller: seller ?? {}
             },
             StatusCodes.OK
         )
@@ -194,10 +198,8 @@ async function verifyGatewayRequest(c: Context, next: Next): Promise<void> {
         c.set("gatewayToken", payload)
         await next()
     } catch (error) {
-        throw new NotAuthorizedError(
-            "Invalid request",
-            "verifyGatewayRequest() method: Request not coming from api gateway"
-        )
+        c.text("User cannot access the resource.", StatusCodes.FORBIDDEN)
+        return
     }
 }
 
