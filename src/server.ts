@@ -1,4 +1,4 @@
-import jwt from "jsonwebtoken"
+import { createVerifier } from "fast-jwt"
 import {
     CustomError,
     IAuthPayload,
@@ -8,10 +8,9 @@ import {
     API_GATEWAY_URL,
     ELASTIC_SEARCH_URL,
     JWT_TOKEN,
+    NODE_ENV,
     PORT
 } from "@users/config"
-import { appRoutes } from "@users/routes"
-import { Logger } from "winston"
 import { Context, Hono, Next } from "hono"
 import { cors } from "hono/cors"
 import { compress } from "hono/compress"
@@ -21,18 +20,29 @@ import { secureHeaders } from "hono/secure-headers"
 import { bodyLimit } from "hono/body-limit"
 import { rateLimiter } from "hono-rate-limiter"
 import { HTTPException } from "hono/http-exception"
+import { appRoutes } from "@users/routes"
+import { Logger } from "winston"
 import { StatusCodes } from "http-status-codes"
 import { StatusCode } from "hono/utils/http-status"
 import { serve } from "@hono/node-server"
 import { logger } from "hono/logger"
-import { ElasticSearchClient } from "./elasticsearch"
 import { UsersQueue } from "./queues/users.queue"
+import { ElasticSearchClient } from "./elasticsearch"
 
-const LIMIT_TIMEOUT = 2 * 1000 // 2s
+const LIMIT_TIMEOUT = 3 * 1000 // 3s
 
-export async function setupHono(app: Hono): Promise<Hono> {
-    const logger = (location: string) =>
-        winstonLogger(`${ELASTIC_SEARCH_URL}`, location ?? "server.ts", "debug")
+export async function setupHono(
+    app: Hono,
+    logger?: (location?: string) => Logger
+): Promise<Hono> {
+    if (!logger) {
+        logger = (location?: string) =>
+            winstonLogger(
+                `${ELASTIC_SEARCH_URL}`,
+                location ?? "server.ts",
+                "debug"
+            )
+    }
 
     usersErrorHandler(app)
     securityMiddleware(app)
@@ -41,15 +51,14 @@ export async function setupHono(app: Hono): Promise<Hono> {
 
     return app
 }
+
 export async function start(
     app: Hono,
-    logger: (moduleName: string) => Logger
+    logger: (moduleName?: string) => Logger
 ): Promise<void> {
     await startQueues(logger)
     startElasticSearch(logger)
-
-    app = await setupHono(app)
-
+    app = await setupHono(app, logger)
     startServer(app, logger)
 }
 
@@ -61,8 +70,12 @@ function securityMiddleware(app: Hono): void {
             })
         })
     )
-    app.use(secureHeaders())
-    app.use(csrf())
+    app.use(
+        secureHeaders({
+            xXssProtection: "1"
+        })
+    )
+    app.use(csrf({ origin: [`${API_GATEWAY_URL}`] }))
     app.use(
         cors({
             origin: [`${API_GATEWAY_URL}`],
@@ -74,8 +87,14 @@ function securityMiddleware(app: Hono): void {
     app.use(async (c: Context, next: Next) => {
         const authorization = c.req.header("authorization")
         if (authorization && authorization !== "") {
-            const token = authorization.split(" ")[1]
-            const payload = jwt.verify(token, JWT_TOKEN!) as IAuthPayload
+            const authBearer = authorization.split(" ")[1]
+            const verifier = createVerifier({
+                key: `${JWT_TOKEN}`,
+                cache: true,
+                cacheTTL: 30 * 60 * 1000
+            })
+            const payload = verifier(authBearer) as IAuthPayload
+
             c.set("currentUser", payload)
         }
 
@@ -84,7 +103,9 @@ function securityMiddleware(app: Hono): void {
 }
 
 function standardMiddleware(app: Hono): void {
-    app.use(logger())
+    if (NODE_ENV !== "production") {
+        app.use(logger())
+    }
     app.use(compress())
     app.use(
         bodyLimit({
@@ -131,24 +152,26 @@ async function startQueues(
     queue.consumeSellerDirectMessages()
     queue.consumeReviewFanoutMessages()
     queue.consumeSeedGigDirectMessages()
-
     return queue
 }
 
-async function startElasticSearch(
+export async function startElasticSearch(
     logger: (moduleName: string) => Logger
-): Promise<void> {
+): Promise<ElasticSearchClient> {
     const elastic = new ElasticSearchClient(logger)
     await elastic.checkConnection()
+
+    return elastic
 }
 
 function usersErrorHandler(app: Hono): void {
     app.notFound((c) => {
-        return c.text("Route path is not found", StatusCodes.NOT_FOUND)
+        return c.text("Route path does not found", StatusCodes.NOT_FOUND)
     })
 
     app.onError((err: Error, c: Context) => {
         if (err instanceof CustomError) {
+            console.log(err)
             return c.json(
                 err.serializeErrors(),
                 (err.statusCode as StatusCode) ??
@@ -170,7 +193,6 @@ function startServer(hono: Hono, logger: (moduleName: string) => Logger): void {
         logger("server.ts - startServer()").info(
             `UsersService has started with pid ${process.pid}`
         )
-
         serve({ fetch: hono.fetch, port: Number(PORT) }, (info) => {
             logger("server.ts - startServer()").info(
                 `UsersService running on port ${info.port}`

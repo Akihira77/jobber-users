@@ -62,24 +62,16 @@ export class SellerHandler {
         return createdSeller
     }
 
-    async getSellerById(sellerId: string): Promise<ISellerDocument | null> {
-        const seller = await this.sellerService.getSellerById(sellerId)
-
-        return seller
+    getSellerById(sellerId: string): Promise<ISellerDocument | null> {
+        return this.sellerService.getSellerById(sellerId)
     }
 
-    async getSellerByUsername(
-        username: string
-    ): Promise<ISellerDocument | null> {
-        const seller = await this.sellerService.getSellerByUsername(username)
-
-        return seller
+    getSellerByUsername(username: string): Promise<ISellerDocument | null> {
+        return this.sellerService.getSellerByUsername(username)
     }
 
-    async getRandomSellers(count: number): Promise<ISellerDocument[]> {
-        const sellers = await this.sellerService.getRandomSellers(count)
-
-        return sellers
+    getRandomSellers(count: number): Promise<ISellerDocument[]> {
+        return this.sellerService.getRandomSellers(count)
     }
 
     async updateSeller(

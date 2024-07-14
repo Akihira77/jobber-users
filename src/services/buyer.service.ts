@@ -5,11 +5,9 @@ import { Logger } from "winston"
 export class BuyerService {
     constructor(private logger: (moduleName: string) => Logger) {}
 
-    async getBuyerByEmail(email: string): Promise<IBuyerDocument | null> {
+    getBuyerByEmail(email: string): Promise<IBuyerDocument | null> {
         try {
-            const buyer = await BuyerModel.findOne({ email }).lean().exec()
-
-            return buyer
+            return BuyerModel.findOne({ email }).lean().exec()
         } catch (error) {
             this.logger("services/buyer.service.ts - getBuyerByEmail()").error(
                 "UsersService getBuyerByEmail() method error",
@@ -19,9 +17,9 @@ export class BuyerService {
         }
     }
 
-    async getBuyerByUsername(username: string): Promise<IBuyerDocument | null> {
+    getBuyerByUsername(username: string): Promise<IBuyerDocument | null> {
         try {
-            return await BuyerModel.findOne({ username }).lean().exec()
+            return BuyerModel.findOne({ username }).lean().exec()
         } catch (error) {
             this.logger(
                 "services/buyer.service.ts - getBuyerByUsername()"
@@ -30,9 +28,9 @@ export class BuyerService {
         }
     }
 
-    async getRandomBuyers(size: number): Promise<IBuyerDocument[]> {
+    getRandomBuyers(size: number): Promise<IBuyerDocument[]> {
         try {
-            return await BuyerModel.aggregate([
+            return BuyerModel.aggregate([
                 {
                     $sample: {
                         size

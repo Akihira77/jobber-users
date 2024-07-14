@@ -63,6 +63,8 @@ export class UsersQueue {
             this.logger(
                 "queues/users.producer.ts - publishDirectMessage()"
             ).info(logMessage)
+
+            await this.ch.close()
         } catch (error) {
             this.logger(
                 "queues/users.producer.ts - publishDirectMessage()"

@@ -4,27 +4,15 @@ import { BuyerService } from "@users/services/buyer.service"
 export class BuyerHandler {
     constructor(private buyerService: BuyerService) {}
 
-    async getBuyerByEmail(
-        currUser: IAuthPayload
-    ): Promise<IBuyerDocument | null> {
-        const buyer = await this.buyerService.getBuyerByEmail(currUser.email)
-
-        return buyer
+    getBuyerByEmail(currUser: IAuthPayload): Promise<IBuyerDocument | null> {
+        return this.buyerService.getBuyerByEmail(currUser.email)
     }
 
-    async getCurrentBuyer(
-        currUser: IAuthPayload
-    ): Promise<IBuyerDocument | null> {
-        const buyer = await this.buyerService.getBuyerByUsername(
-            currUser.username
-        )
-
-        return buyer
+    getCurrentBuyer(currUser: IAuthPayload): Promise<IBuyerDocument | null> {
+        return this.buyerService.getBuyerByUsername(currUser.username)
     }
 
-    async getBuyerByUsername(username: string): Promise<IBuyerDocument | null> {
-        const buyer = await this.buyerService.getBuyerByUsername(username)
-
-        return buyer
+    getBuyerByUsername(username: string): Promise<IBuyerDocument | null> {
+        return this.buyerService.getBuyerByUsername(username)
     }
 }

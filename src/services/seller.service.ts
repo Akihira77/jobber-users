@@ -18,7 +18,7 @@ export class SellerService {
         private logger: (moduleName: string) => Logger
     ) {}
 
-    async getSellerById(id: string): Promise<ISellerDocument | null> {
+    getSellerById(id: string): Promise<ISellerDocument | null> {
         try {
             if (!isValidObjectId(id)) {
                 throw new NotFoundError(
@@ -27,7 +27,7 @@ export class SellerService {
                 )
             }
 
-            return await SellerModel.findById(id).lean().exec()
+            return SellerModel.findById(id).lean().exec()
         } catch (error) {
             this.logger("services/seller.service.ts - getSellerById()").error(
                 "UsersService getSellerById() method error",
@@ -41,11 +41,9 @@ export class SellerService {
         }
     }
 
-    async getSellerByUsername(
-        username: string
-    ): Promise<ISellerDocument | null> {
+    getSellerByUsername(username: string): Promise<ISellerDocument | null> {
         try {
-            return await SellerModel.findOne({
+            return SellerModel.findOne({
                 username
             })
                 .lean()
@@ -58,9 +56,9 @@ export class SellerService {
         }
     }
 
-    async getSellerByEmail(email: string): Promise<ISellerDocument | null> {
+    getSellerByEmail(email: string): Promise<ISellerDocument | null> {
         try {
-            return await SellerModel.findOne({
+            return SellerModel.findOne({
                 email
             })
                 .lean()
@@ -73,9 +71,9 @@ export class SellerService {
         }
     }
 
-    async getRandomSellers(size: number): Promise<ISellerDocument[]> {
+    getRandomSellers(size: number): Promise<ISellerDocument[]> {
         try {
-            return await SellerModel.aggregate([
+            return SellerModel.aggregate([
                 {
                     $sample: {
                         size
@@ -94,7 +92,7 @@ export class SellerService {
         try {
             const result = await SellerModel.create(sellerData)
 
-            await this.buyerService.updateBuyerIsSellerProp(result.email!)
+            this.buyerService.updateBuyerIsSellerProp(result.email!)
 
             return result
         } catch (error) {

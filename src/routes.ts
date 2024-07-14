@@ -1,5 +1,5 @@
 import { Logger } from "winston"
-import jwt from "jsonwebtoken"
+import { createVerifier } from "fast-jwt"
 import { Context, Hono, Next } from "hono"
 import { StatusCodes } from "http-status-codes"
 import { NotAuthorizedError } from "@Akihira77/jobber-shared"
@@ -32,8 +32,8 @@ export function appRoutes(
     const buyerAPI = app.basePath(BUYER_BASE_PATH)
     const sellerAPI = app.basePath(SELLER_BASE_PATH)
 
-    // buyerAPI.use(verifyGatewayRequest, authOnly)
-    // sellerAPI.use(verifyGatewayRequest, authOnly)
+    buyerAPI.use(verifyGatewayRequest, authOnly)
+    sellerAPI.use(verifyGatewayRequest, authOnly)
 
     buyerAPI.use(authOnly)
     sellerAPI.use(authOnly)
@@ -41,8 +41,8 @@ export function appRoutes(
     buyerRoute(buyerAPI, buyerHndlr)
     sellerRoute(sellerAPI, sellerHndlr)
 
-    buyerAPI.use(verifyGatewayRequest, authOnly)
-    sellerAPI.use(verifyGatewayRequest, authOnly)
+    // buyerAPI.use(verifyGatewayRequest, authOnly)
+    // sellerAPI.use(verifyGatewayRequest, authOnly)
 }
 
 function buyerRoute(
@@ -187,13 +187,13 @@ async function verifyGatewayRequest(c: Context, next: Next): Promise<void> {
     }
 
     try {
-        const payload: { id: string; iat: number } = jwt.verify(
-            token,
-            GATEWAY_JWT_TOKEN!
-        ) as {
-            id: string
-            iat: number
-        }
+        const verifier = createVerifier({
+            key: `${GATEWAY_JWT_TOKEN}`,
+            cache: true,
+            cacheTTL: 24 * 60 * 60 * 1000, // 24 hours,
+            maxAge: 24 * 60 * 60 * 1000
+        })
+        const payload: { id: string; iat: number } = verifier(token)
 
         c.set("gatewayToken", payload)
         await next()

@@ -1,4 +1,4 @@
-import { Client } from "@elastic/elasticsearch"
+import { Client, HttpConnection } from "@elastic/elasticsearch"
 import { ClusterHealthResponse } from "@elastic/elasticsearch/lib/api/types"
 import { ELASTIC_SEARCH_URL } from "@users/config"
 import { Logger } from "winston"
@@ -7,7 +7,8 @@ export class ElasticSearchClient {
     private client: Client
     constructor(private logger: (moduleName: string) => Logger) {
         this.client = new Client({
-            node: `${ELASTIC_SEARCH_URL}`
+            node: `${ELASTIC_SEARCH_URL}`,
+            Connection: HttpConnection
         })
     }
 
